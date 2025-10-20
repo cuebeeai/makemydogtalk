@@ -1,6 +1,7 @@
 import { Menu, X } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import logoImage from "@assets/MakeMyDogTalkLogo_1760988429734.png";
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -18,8 +19,12 @@ export default function Header() {
       <div className="max-w-7xl mx-auto px-6">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-2">
-            <span className="text-2xl">🐾</span>
-            <span className="text-xl font-bold text-foreground">Make My Dog Talk</span>
+            <img 
+              src={logoImage} 
+              alt="Make My Dog Talk Logo" 
+              className="h-10"
+              data-testid="img-logo"
+            />
           </div>
 
           <nav className="hidden md:flex items-center gap-8">
