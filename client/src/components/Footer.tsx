@@ -83,7 +83,7 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="border-t pt-8 text-center text-muted-foreground text-sm">
+        <div className="pt-8 text-center text-muted-foreground text-sm">
           <p>&copy; 2025 Make My Dog Talk. All rights reserved.</p>
         </div>
       </div>
