@@ -72,7 +72,7 @@ export default function Header() {
         </div>
 
         {mobileMenuOpen && (
-          <nav className="md:hidden py-4 border-t">
+          <nav className="md:hidden py-4">
             <div className="flex flex-col gap-4">
               <button
                 onClick={() => scrollToSection('hero')}
