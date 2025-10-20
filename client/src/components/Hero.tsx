@@ -26,7 +26,7 @@ export default function Hero() {
   };
 
   return (
-    <section id="hero" className="py-16 md:py-24">
+    <section id="hero" className="pt-32 pb-16 md:pt-40 md:pb-24">
       <div className="max-w-7xl mx-auto px-6">
         <div className="grid md:grid-cols-2 gap-12 items-center">
           <div className="space-y-6">

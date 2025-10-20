@@ -17,7 +17,7 @@ export default function Header() {
   return (
     <header className="absolute top-0 left-0 right-0 z-50">
       <div className="max-w-7xl mx-auto px-6">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between h-20">
           <div className="flex items-center gap-2">
             <img 
               src={logoImage} 
@@ -30,35 +30,35 @@ export default function Header() {
           <nav className="hidden md:flex items-center gap-8">
             <button
               onClick={() => scrollToSection('hero')}
-              className="text-foreground hover:text-primary transition-colors"
+              className="text-foreground dark:text-white hover:text-primary dark:hover:text-primary transition-colors font-medium"
               data-testid="link-home"
             >
               Home
             </button>
             <button
               onClick={() => scrollToSection('features')}
-              className="text-foreground hover:text-primary transition-colors"
+              className="text-foreground dark:text-white hover:text-primary dark:hover:text-primary transition-colors font-medium"
               data-testid="link-features"
             >
               Features
             </button>
             <button
               onClick={() => scrollToSection('examples')}
-              className="text-foreground hover:text-primary transition-colors"
+              className="text-foreground dark:text-white hover:text-primary dark:hover:text-primary transition-colors font-medium"
               data-testid="link-examples"
             >
               Examples
             </button>
             <button
               onClick={() => scrollToSection('pricing')}
-              className="text-foreground hover:text-primary transition-colors"
+              className="text-foreground dark:text-white hover:text-primary dark:hover:text-primary transition-colors font-medium"
               data-testid="link-pricing"
             >
               Pricing
             </button>
             <button
               onClick={() => scrollToSection('contact')}
-              className="text-foreground hover:text-primary transition-colors"
+              className="text-foreground dark:text-white hover:text-primary dark:hover:text-primary transition-colors font-medium"
               data-testid="link-contact"
             >
               Contact
@@ -77,39 +77,39 @@ export default function Header() {
         </div>
 
         {mobileMenuOpen && (
-          <nav className="md:hidden py-4">
+          <nav className="md:hidden py-4 bg-background/95 backdrop-blur">
             <div className="flex flex-col gap-4">
               <button
                 onClick={() => scrollToSection('hero')}
-                className="text-left text-foreground hover:text-primary transition-colors py-2"
+                className="text-left text-foreground hover:text-primary transition-colors py-2 font-medium"
                 data-testid="link-mobile-home"
               >
                 Home
               </button>
               <button
                 onClick={() => scrollToSection('features')}
-                className="text-left text-foreground hover:text-primary transition-colors py-2"
+                className="text-left text-foreground hover:text-primary transition-colors py-2 font-medium"
                 data-testid="link-mobile-features"
               >
                 Features
               </button>
               <button
                 onClick={() => scrollToSection('examples')}
-                className="text-left text-foreground hover:text-primary transition-colors py-2"
+                className="text-left text-foreground hover:text-primary transition-colors py-2 font-medium"
                 data-testid="link-mobile-examples"
               >
                 Examples
               </button>
               <button
                 onClick={() => scrollToSection('pricing')}
-                className="text-left text-foreground hover:text-primary transition-colors py-2"
+                className="text-left text-foreground hover:text-primary transition-colors py-2 font-medium"
                 data-testid="link-mobile-pricing"
               >
                 Pricing
               </button>
               <button
                 onClick={() => scrollToSection('contact')}
-                className="text-left text-foreground hover:text-primary transition-colors py-2"
+                className="text-left text-foreground hover:text-primary transition-colors py-2 font-medium"
                 data-testid="link-mobile-contact"
               >
                 Contact
