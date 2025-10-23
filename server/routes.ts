@@ -36,7 +36,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       const operation = await storage.createVideoOperation({
-        operationId: JSON.stringify(result.operation),
+        operationId: result.operation.name || null,
         status: "processing",
         prompt,
         imagePath,
@@ -82,13 +82,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (operation.operationId) {
-        const statusResult = await checkVideoStatus(JSON.parse(operation.operationId));
+        const statusResult = await checkVideoStatus(operation.operationId);
 
         await storage.updateVideoOperation(operationId, {
           status: statusResult.status,
           videoUrl: statusResult.videoUrl || null,
           error: statusResult.error || null,
-          operationId: statusResult.operation ? JSON.stringify(statusResult.operation) : operation.operationId,
         });
 
         res.json({
