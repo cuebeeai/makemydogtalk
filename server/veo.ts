@@ -67,22 +67,30 @@ export async function checkVideoStatus(operationName: string): Promise<VideoStat
 
     const updatedOperation = await response.json();
 
+    console.log("Operation status:", JSON.stringify(updatedOperation, null, 2));
+
     if (!updatedOperation.done) {
+      console.log("Video still processing...");
       return {
         status: "processing",
       };
     }
 
+    console.log("Operation completed. Checking for errors...");
     if (updatedOperation.error) {
       const errorMsg = typeof updatedOperation.error === 'string' 
         ? updatedOperation.error 
         : (updatedOperation.error.message ? String(updatedOperation.error.message) : "Video generation failed");
+      console.log("Error found:", errorMsg);
       return {
         status: "failed",
         error: errorMsg,
       };
     }
 
+    console.log("Checking for generatedVideos. Response:", updatedOperation.response);
+    console.log("generatedVideos:", updatedOperation.response?.generatedVideos);
+    
     if (updatedOperation.response?.generatedVideos && updatedOperation.response.generatedVideos.length > 0) {
       const generatedVideo = updatedOperation.response.generatedVideos[0];
       
