@@ -174,76 +174,126 @@ export default function Hero() {
             </div>
 
             <Card className="p-8 space-y-6 border-2 shadow-lg">
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div>
-                  <label
-                    htmlFor="file-upload"
-                    className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed rounded-xl cursor-pointer hover-elevate transition-all border-primary/30 hover:border-primary/50 bg-primary/5"
-                    data-testid="input-file-upload"
-                  >
-                    <div className="flex flex-col items-center justify-center gap-3">
-                      {previewUrl ? (
-                        <img src={previewUrl} alt="Preview" className="h-32 w-32 object-cover rounded-xl shadow-md" />
-                      ) : (
-                        <>
-                          <Upload className="h-10 w-10 text-primary" />
-                          <p className="text-sm font-medium text-foreground">Upload a photo of your furry friend</p>
-                        </>
-                      )}
-                    </div>
-                    <input
-                      id="file-upload"
-                      type="file"
-                      className="hidden"
-                      accept="image/*"
-                      onChange={handleFileChange}
-                    />
-                  </label>
-                </div>
+              {generatedVideoUrl ? (
+                <div className="text-center space-y-6" data-testid="paywall-section">
+                  <div className="space-y-3">
+                    <h3 className="text-2xl font-bold text-foreground">Love Your Video? 🎥</h3>
+                    <p className="text-muted-foreground">
+                      Want to create more talking dog videos? Choose a plan below:
+                    </p>
+                  </div>
 
-                <div>
-                  <Textarea
-                    placeholder="What should your dog say or do? (e.g., 'Say happy birthday!', 'Sing a song', 'Tell a joke')"
-                    value={prompt}
-                    onChange={(e) => setPrompt(e.target.value)}
-                    className="min-h-28 text-base"
-                    data-testid="input-prompt"
-                  />
-                </div>
+                  <div className="space-y-4">
+                    <Button
+                      size="lg"
+                      className="w-full text-lg font-semibold h-14"
+                      data-testid="button-buy-single"
+                    >
+                      $5 - Single Video (HD, No Watermark)
+                    </Button>
+                    
+                    <Button
+                      size="lg"
+                      variant="default"
+                      className="w-full text-lg font-semibold h-14 bg-gradient-to-r from-primary to-accent hover:opacity-90"
+                      data-testid="button-buy-bundle"
+                    >
+                      $20 - 5 Videos Bundle (Save $5!) ⭐
+                    </Button>
 
-                <Button
-                  type="submit"
-                  size="lg"
-                  className="w-full text-lg font-semibold h-14 shadow-md hover:shadow-lg transition-shadow"
-                  disabled={!selectedFile || !prompt || isGenerating}
-                  data-testid="button-generate"
-                >
-                  {isGenerating ? (
-                    <>
-                      <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                      Generating Video...
-                    </>
-                  ) : (
-                    "Make My Dog Talk 🐾"
-                  )}
-                </Button>
-              </form>
-
-              {error && (
-                <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg" data-testid="error-message">
-                  <p className="text-sm text-destructive">{error}</p>
-                </div>
-              )}
-
-              {isGenerating && (
-                <div className="text-center space-y-2" data-testid="generating-status">
-                  <p className="text-sm text-muted-foreground">
-                    Your video is being generated... This usually takes 2-3 minutes.
-                  </p>
-                  <div className="flex justify-center">
-                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="w-full"
+                      onClick={() => {
+                        setGeneratedVideoUrl(null);
+                        setSelectedFile(null);
+                        setPreviewUrl(null);
+                        setPrompt("");
+                      }}
+                      data-testid="button-create-another-free"
+                    >
+                      Or create another free video (with watermark)
+                    </Button>
                   </div>
                 </div>
+              ) : isGenerating ? (
+                <div className="text-center space-y-6 py-8" data-testid="processing-status">
+                  <div className="space-y-3">
+                    <h3 className="text-2xl font-bold text-foreground">Processing Your Video 🐾</h3>
+                    <p className="text-muted-foreground">
+                      Your furry friend is getting ready to speak! This usually takes 2-3 minutes.
+                    </p>
+                  </div>
+                  
+                  <div className="flex justify-center items-center gap-2">
+                    <div className="animate-bounce delay-0">🐕</div>
+                    <div className="animate-bounce delay-100" style={{ animationDelay: '0.1s' }}>🐩</div>
+                    <div className="animate-bounce delay-200" style={{ animationDelay: '0.2s' }}>🦮</div>
+                    <div className="animate-bounce delay-300" style={{ animationDelay: '0.3s' }}>🐕‍🦺</div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                      <div className="bg-primary h-full animate-pulse rounded-full" style={{ width: '60%' }}></div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Generating your 8-second masterpiece...</p>
+                  </div>
+                </div>
+              ) : (
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  <div>
+                    <label
+                      htmlFor="file-upload"
+                      className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed rounded-xl cursor-pointer hover-elevate transition-all border-primary/30 hover:border-primary/50 bg-primary/5"
+                      data-testid="input-file-upload"
+                    >
+                      <div className="flex flex-col items-center justify-center gap-3">
+                        {previewUrl ? (
+                          <img src={previewUrl} alt="Preview" className="h-32 w-32 object-cover rounded-xl shadow-md" />
+                        ) : (
+                          <>
+                            <Upload className="h-10 w-10 text-primary" />
+                            <p className="text-sm font-medium text-foreground">Upload a photo of your furry friend</p>
+                          </>
+                        )}
+                      </div>
+                      <input
+                        id="file-upload"
+                        type="file"
+                        className="hidden"
+                        accept="image/*"
+                        onChange={handleFileChange}
+                      />
+                    </label>
+                  </div>
+
+                  <div>
+                    <Textarea
+                      placeholder="What should your dog say or do? (e.g., 'Say happy birthday!', 'Sing a song', 'Tell a joke')"
+                      value={prompt}
+                      onChange={(e) => setPrompt(e.target.value)}
+                      className="min-h-28 text-base"
+                      data-testid="input-prompt"
+                    />
+                  </div>
+
+                  <Button
+                    type="submit"
+                    size="lg"
+                    className="w-full text-lg font-semibold h-14 shadow-md hover:shadow-lg transition-shadow"
+                    disabled={!selectedFile || !prompt || isGenerating}
+                    data-testid="button-generate"
+                  >
+                    Make My Dog Talk 🐾
+                  </Button>
+
+                  {error && (
+                    <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg" data-testid="error-message">
+                      <p className="text-sm text-destructive">{error}</p>
+                    </div>
+                  )}
+                </form>
               )}
             </Card>
           </div>
