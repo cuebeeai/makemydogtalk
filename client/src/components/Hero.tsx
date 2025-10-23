@@ -90,10 +90,13 @@ export default function Hero() {
           }
 
           const statusData = await statusResponse.json();
+          console.log("Poll status response:", statusData);
 
           if (statusData.status === 'completed') {
+            console.log("Video completed! URL:", statusData.videoUrl);
             setGeneratedVideoUrl(statusData.videoUrl);
             setIsGenerating(false);
+            setError(null);
             toast({
               title: "Video ready!",
               description: "Your video has been generated successfully.",
@@ -251,10 +254,20 @@ export default function Hero() {
               <div className="relative w-80 h-80 md:w-[450px] md:h-[450px] rounded-3xl bg-gradient-to-br from-primary/10 to-accent/10 flex items-center justify-center overflow-hidden border-4 border-primary/20 shadow-2xl">
                 {generatedVideoUrl ? (
                   <video
+                    key={generatedVideoUrl}
                     src={generatedVideoUrl}
                     controls
+                    preload="auto"
+                    playsInline
                     className="w-full h-full object-cover"
                     data-testid="video-generated"
+                    onError={(e) => {
+                      console.error("Video load error:", e);
+                      setError("Failed to load video. Try downloading it instead.");
+                    }}
+                    onLoadedMetadata={() => {
+                      console.log("Video loaded successfully");
+                    }}
                   />
                 ) : (
                   <img
