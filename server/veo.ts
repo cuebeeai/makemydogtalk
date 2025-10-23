@@ -88,13 +88,16 @@ export async function checkVideoStatus(operationName: string): Promise<VideoStat
       };
     }
 
-    console.log("Checking for generatedVideos. Response:", updatedOperation.response);
-    console.log("generatedVideos:", updatedOperation.response?.generatedVideos);
+    console.log("Checking for generated video. Response:", updatedOperation.response);
     
-    if (updatedOperation.response?.generatedVideos && updatedOperation.response.generatedVideos.length > 0) {
-      const generatedVideo = updatedOperation.response.generatedVideos[0];
+    const generatedSamples = updatedOperation.response?.generateVideoResponse?.generatedSamples;
+    console.log("generatedSamples:", generatedSamples);
+    
+    if (generatedSamples && generatedSamples.length > 0) {
+      const generatedSample = generatedSamples[0];
       
-      if (!generatedVideo.video) {
+      if (!generatedSample.video) {
+        console.log("No video in sample:", generatedSample);
         return {
           status: "failed",
           error: "No video file in response",
@@ -109,12 +112,14 @@ export async function checkVideoStatus(operationName: string): Promise<VideoStat
       const videoFileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.mp4`;
       const videoPath = path.join(uploadsDir, videoFileName);
 
+      console.log("Downloading video from:", generatedSample.video);
       await ai.files.download({
-        file: generatedVideo.video,
+        file: generatedSample.video,
         downloadPath: videoPath,
       });
 
       const videoUrl = `/uploads/videos/${videoFileName}`;
+      console.log("Video saved to:", videoUrl);
       
       return {
         status: "completed",
@@ -122,6 +127,7 @@ export async function checkVideoStatus(operationName: string): Promise<VideoStat
       };
     }
 
+    console.log("No generatedSamples found in response");
     return {
       status: "failed",
       error: "No video generated",
