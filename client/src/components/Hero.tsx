@@ -5,6 +5,7 @@ import { Upload, Play, Download, Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import heroImage from "@assets/generated_images/Happy_golden_retriever_hero_087f9099.png";
+import demoVideo from "@assets/MMDTHeroVideoSample_1761226901573.mp4";
 
 const useCases = [
   "Surprise Birthday Greetings",
@@ -322,7 +323,7 @@ export default function Hero() {
                   />
                 ) : isPlayingDemo ? (
                   <video
-                    src="/uploads/videos/1761223401107_hxxxqq.mp4"
+                    src={demoVideo}
                     controls
                     autoPlay
                     preload="auto"
