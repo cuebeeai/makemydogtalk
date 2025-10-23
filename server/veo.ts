@@ -49,11 +49,23 @@ export async function generateVideo(config: VideoGenerationConfig): Promise<Vide
   }
 }
 
-export async function checkVideoStatus(operation: any): Promise<VideoStatusResult> {
+export async function checkVideoStatus(operationName: string): Promise<VideoStatusResult> {
   try {
-    const updatedOperation = await ai.operations.getVideosOperation({
-      operation: operation,
-    });
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error("GEMINI_API_KEY not configured");
+    }
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/${operationName}?key=${apiKey}`
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error?.message || `Status check failed: ${response.status}`);
+    }
+
+    const updatedOperation = await response.json();
 
     if (!updatedOperation.done) {
       return {
@@ -99,7 +111,6 @@ export async function checkVideoStatus(operation: any): Promise<VideoStatusResul
       return {
         status: "completed",
         videoUrl,
-        operation: updatedOperation,
       };
     }
 
