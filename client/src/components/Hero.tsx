@@ -21,6 +21,7 @@ export default function Hero() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedVideoUrl, setGeneratedVideoUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isPlayingDemo, setIsPlayingDemo] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -319,16 +320,43 @@ export default function Hero() {
                       console.log("Video loaded successfully");
                     }}
                   />
-                ) : (
-                  <img
-                    src={heroImage}
-                    alt="Happy dog"
+                ) : isPlayingDemo ? (
+                  <video
+                    src="/uploads/videos/1761223401107_hxxxqq.mp4"
+                    controls
+                    autoPlay
+                    preload="auto"
+                    playsInline
                     className="w-full h-full object-cover"
-                    data-testid="img-hero-dog"
+                    data-testid="video-demo"
+                    onEnded={() => setIsPlayingDemo(false)}
                   />
+                ) : (
+                  <>
+                    <img
+                      src={heroImage}
+                      alt="Happy dog"
+                      className="w-full h-full object-cover"
+                      data-testid="img-hero-dog"
+                    />
+                    <button
+                      onClick={() => setIsPlayingDemo(true)}
+                      className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black/40 hover:bg-black/50 transition-all group"
+                      data-testid="button-play-demo"
+                    >
+                      <div className="flex items-center justify-center w-20 h-20 md:w-24 md:h-24 rounded-full bg-white/90 group-hover:bg-white group-hover:scale-110 transition-all shadow-2xl">
+                        <Play className="h-10 w-10 md:h-12 md:w-12 text-primary fill-primary ml-1" />
+                      </div>
+                      <div className="px-6 py-3 bg-white/95 rounded-full shadow-xl">
+                        <p className="text-base md:text-lg font-bold text-foreground">
+                          Click to Make Me Talk! 🐾
+                        </p>
+                      </div>
+                    </button>
+                  </>
                 )}
               </div>
-              {generatedVideoUrl ? (
+              {generatedVideoUrl && (
                 <Button
                   variant="default"
                   size="lg"
@@ -338,17 +366,6 @@ export default function Hero() {
                 >
                   <Download className="h-5 w-5" />
                   Download Video
-                </Button>
-              ) : (
-                <Button
-                  variant="secondary"
-                  size="lg"
-                  className="absolute -bottom-6 left-1/2 -translate-x-1/2 gap-2 shadow-xl border-2"
-                  onClick={() => console.log('Watch sample clicked')}
-                  data-testid="button-watch-sample"
-                >
-                  <Play className="h-5 w-5" />
-                  Watch Sample
                 </Button>
               )}
             </div>
