@@ -309,16 +309,30 @@ export default function Hero() {
                     key={generatedVideoUrl}
                     src={generatedVideoUrl}
                     controls
-                    preload="auto"
+                    preload="metadata"
                     playsInline
+                    muted={false}
+                    crossOrigin="anonymous"
                     className="w-full h-full object-cover"
                     data-testid="video-generated"
                     onError={(e) => {
                       console.error("Video load error:", e);
+                      console.error("Video src:", generatedVideoUrl);
+                      console.error("Video error details:", e.currentTarget.error);
                       setError("Failed to load video. Try downloading it instead.");
                     }}
                     onLoadedMetadata={() => {
-                      console.log("Video loaded successfully");
+                      console.log("Video loaded successfully:", generatedVideoUrl);
+                      console.log("Video duration:", e.currentTarget.duration);
+                    }}
+                    onLoadStart={() => {
+                      console.log("Video loading started:", generatedVideoUrl);
+                    }}
+                    onCanPlay={() => {
+                      console.log("Video can play:", generatedVideoUrl);
+                    }}
+                    onLoadedData={() => {
+                      console.log("Video data loaded:", generatedVideoUrl);
                     }}
                   />
                 ) : isPlayingDemo ? (

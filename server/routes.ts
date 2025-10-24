@@ -13,7 +13,20 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+  // Serve static files with proper headers for video files
+  app.use("/uploads", (req, res, next) => {
+    // Set CORS headers
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET');
+    res.header('Access-Control-Allow-Headers', 'Content-Type');
+    
+    // Set proper content-type for video files
+    if (req.path.endsWith('.mp4')) {
+      res.header('Content-Type', 'video/mp4');
+    }
+    
+    next();
+  }, express.static(path.join(process.cwd(), "uploads")));
 
   app.post("/api/generate-video", upload.single("image"), async (req, res) => {
     try {

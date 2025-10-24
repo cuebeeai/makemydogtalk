@@ -2,7 +2,15 @@ import { GoogleGenAI } from "@google/genai";
 import * as fs from "fs";
 import * as path from "path";
 
-const ai = new GoogleGenAI({});
+// Check for required environment variables
+if (!process.env.GEMINI_API_KEY) {
+  console.error("Gemini API key not found. Please set the GEMINI_API_KEY environment variable");
+  console.error("Get your API key from: https://aistudio.google.com/app/apikey");
+}
+
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY,
+});
 
 export interface VideoGenerationConfig {
   prompt: string;
