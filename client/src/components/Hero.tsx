@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Upload, Play, Download, Loader2 } from "lucide-react";
+import { Upload, Play, Download, PawPrint } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import heroImage from "@assets/generated_images/Happy_golden_retriever_hero_087f9099.png";
@@ -46,7 +46,7 @@ export default function Hero() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!selectedFile || !prompt) return;
 
     setIsGenerating(true);
@@ -145,6 +145,11 @@ export default function Hero() {
     }
   };
 
+  // Calculate speaking time estimate (rough: ~2.5 words per second)
+  const wordCount = prompt.trim().split(/\s+/).filter(w => w.length > 0).length;
+  const estimatedSeconds = Math.max(1, Math.round((wordCount / 2.5) * 10) / 10);
+  const charCount = prompt.length;
+
   return (
     <section id="hero" className="pt-32 pb-16 md:pt-40 md:pb-24 min-h-screen flex items-center">
       <div className="max-w-7xl mx-auto px-6 w-full">
@@ -171,7 +176,7 @@ export default function Hero() {
                 </div>
               </div>
               <p className="text-lg md:text-xl text-muted-foreground leading-relaxed">
-                Generate an 8-second talking video from a photo + prompt. Watch your furry friend come to life!
+                Generate a talking video from a photo + prompt. Watch your furry friend come to life!
               </p>
             </div>
 
@@ -212,6 +217,7 @@ export default function Hero() {
                         setSelectedFile(null);
                         setPreviewUrl(null);
                         setPrompt("");
+                        setError(null);
                       }}
                       data-testid="button-create-another-free"
                     >
@@ -244,6 +250,7 @@ export default function Hero() {
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-6">
+                  {/* Image Upload */}
                   <div>
                     <label
                       htmlFor="file-upload"
@@ -256,7 +263,7 @@ export default function Hero() {
                         ) : (
                           <>
                             <Upload className="h-10 w-10 text-primary" />
-                            <p className="text-sm font-medium text-foreground">Upload a photo of your furry friend</p>
+                            <p className="text-sm font-medium text-foreground">Upload a photo of your dog</p>
                           </>
                         )}
                       </div>
@@ -270,14 +277,32 @@ export default function Hero() {
                     </label>
                   </div>
 
-                  <div>
+                  {/* Script Input */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold text-foreground">
+                    What do you want your dog to say?
+                    </label>
                     <Textarea
-                      placeholder="What should your dog say or do? (e.g., 'Say happy birthday!', 'Sing a song', 'Tell a joke')"
+                      placeholder="Hey! It's me, Luna! Don't forget to grab my treats today!"
                       value={prompt}
                       onChange={(e) => setPrompt(e.target.value)}
-                      className="min-h-28 text-base"
+                      className="min-h-24 text-base resize-none"
                       data-testid="input-prompt"
+                      maxLength={150}
                     />
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground">Keep it short and natural - about one sentence (under 20 words)</p>
+                      {prompt && (
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground">
+                            Speaking time: ~{estimatedSeconds}s
+                          </span>
+                          <span className={charCount > 150 ? "text-destructive font-medium" : "text-muted-foreground"}>
+                            {charCount}/150 characters
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <Button
@@ -287,7 +312,8 @@ export default function Hero() {
                     disabled={!selectedFile || !prompt || isGenerating}
                     data-testid="button-generate"
                   >
-                    Make My Dog Talk 🐾
+                    <PawPrint className="h-5 w-5 mr-2" />
+                    Make My Dog Talk
                   </Button>
 
                   {error && (
@@ -321,17 +347,17 @@ export default function Hero() {
                       console.error("Video error details:", e.currentTarget.error);
                       setError("Failed to load video. Try downloading it instead.");
                     }}
-                    onLoadedMetadata={() => {
+                    onLoadedMetadata={(e) => {
                       console.log("Video loaded successfully:", generatedVideoUrl);
                       console.log("Video duration:", e.currentTarget.duration);
                     }}
-                    onLoadStart={() => {
+                    onLoadStart={(e) => {
                       console.log("Video loading started:", generatedVideoUrl);
                     }}
-                    onCanPlay={() => {
+                    onCanPlay={(e) => {
                       console.log("Video can play:", generatedVideoUrl);
                     }}
-                    onLoadedData={() => {
+                    onLoadedData={(e) => {
                       console.log("Video data loaded:", generatedVideoUrl);
                     }}
                   />

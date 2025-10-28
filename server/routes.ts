@@ -40,12 +40,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const imagePath = req.file.path;
       const prompt = req.body.prompt;
+      const intent = req.body.intent || "";
+      const tone = req.body.tone || "friendly";
+      const background = req.body.background || "";
 
-      console.log(`Generating video with prompt: "${prompt}"`);
+      console.log(`Generating video with prompt: "${prompt}", intent: "${intent}", tone: "${tone}", background: "${background}"`);
 
       const result = await generateVideo({
         prompt,
         imagePath,
+        intent,
+        tone,
+        background,
       });
 
       const operation = await storage.createVideoOperation({
