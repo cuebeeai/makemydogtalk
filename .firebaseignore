@@ -1,0 +1,69 @@
+# Firebase ignore file - prevents uploading unnecessary files
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing
+coverage/
+
+# Production builds (will be rebuilt on server)
+dist/
+build/
+out/
+.next/
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.yaml
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+firebase-debug.log
+
+# Cache
+.cache/
+.parcel-cache/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+uploads/temp/
+uploads/videos/
+
+# Build artifacts
+*.tsbuildinfo
+
+# Local development
+.replit
+.local/
+
+# Documentation
+*.md
+attached_assets/
+
+# Scripts
+*.sh
