@@ -1,0 +1,50 @@
+# Firebase App Hosting configuration for MakeMyDogTalk
+runConfig:
+  # Runtime configuration
+  runtime: nodejs20
+
+  # CPU and Memory allocation
+  cpu: 2
+  memoryMiB: 2048
+
+  # Concurrency settings
+  minInstances: 0
+  maxInstances: 10
+  concurrency: 80
+
+  # Environment variables (non-sensitive)
+  env:
+    - variable: NODE_ENV
+      value: production
+    - variable: PORT
+      value: "8080"
+    - variable: VERTEX_AI_LOCATION
+      value: us-central1
+
+  # Secret environment variables (to be configured in Firebase console)
+  # These will be set up through Firebase App Hosting secrets
+  secrets:
+    - variable: GOOGLE_CLIENT_ID
+      secret: google_client_id
+    - variable: GOOGLE_CLIENT_SECRET
+      secret: google_client_secret
+    - variable: OAUTH_REDIRECT_URI
+      secret: oauth_redirect_uri
+    - variable: SERVICE_ACCOUNT_JSON
+      secret: service_account_json
+    - variable: VERTEX_AI_PROJECT_ID
+      secret: vertex_ai_project_id
+    - variable: SESSION_SECRET
+      secret: session_secret
+    - variable: STRIPE_SECRET_KEY
+      secret: stripe_secret_key
+    - variable: STRIPE_PUBLISHABLE_KEY
+      secret: stripe_publishable_key
+    - variable: STRIPE_PRICE_JUMP_LINE
+      secret: stripe_price_jump_line
+    - variable: STRIPE_PRICE_3_PACK
+      secret: stripe_price_3_pack
+    - variable: STRIPE_WEBHOOK_SECRET
+      secret: stripe_webhook_secret
+    - variable: DATABASE_URL
+      secret: database_url
