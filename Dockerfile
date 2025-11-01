@@ -17,8 +17,9 @@ COPY . .
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 RUN npm run build
 
-# Remove dev dependencies after build
-RUN npm prune --production
+# Keep dotenv in production (needed for runtime)
+# Remove other dev dependencies after build
+RUN npm prune --production && npm install dotenv
 
 # Expose port 8080 (Cloud Run default)
 EXPOSE 8080
@@ -27,5 +28,9 @@ EXPOSE 8080
 ENV NODE_ENV=production
 ENV PORT=8080
 
+# Add healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:8080/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})" || exit 1
+
 # Start the application
-CMD ["npm", "start"]
+CMD ["node", "dist/index.js"]
