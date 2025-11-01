@@ -14,7 +14,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthDialog } from "@/components/AuthDialog";
 import PromoCodeDialog from "@/components/PromoCodeDialog";
-import logoImage from "@assets/MakeMyDogTalkLogo_1760988429734_1761186294239.png";
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -35,7 +34,7 @@ export default function Header() {
         <div className="flex items-center justify-between h-20">
           <Link href="/" className="flex items-center gap-3" data-testid="link-home-logo">
             <img
-              src={logoImage}
+              src="/assets/logo.png"
               alt="Make My Dog Talk Logo"
               className="h-12 w-12"
               data-testid="img-logo"

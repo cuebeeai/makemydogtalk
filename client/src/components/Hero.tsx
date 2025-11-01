@@ -8,13 +8,15 @@ import { useToast } from "@/hooks/use-toast";
 import CheckoutDialog from "./CheckoutDialog";
 import ExamplesModal from "./ExamplesModal";
 import { PRODUCTS } from "@/lib/products";
-import heroImage from "@assets/generated_images/Happy_golden_retriever_hero_087f9099.png";
-import demoVideo from "@assets/MMDTHeroVideoSample_1761226901573.mp4";
-import carGoldenImg from "@/../../attached_assets/CarGolden.png";
-import drivingDogImg from "@/../../attached_assets/DrivingDog.png";
-import greatDaneImg from "@/../../attached_assets/greatdane.jpg";
-import germanShepImg from "@/../../attached_assets/GermanShep.png";
-import logoImage from "@/../../attached_assets/MakeMyDogTalkLogo_1760988429734_1761186294239.png";
+
+// Use public assets
+const heroImage = "/assets/hero.png";
+const demoVideo = "/assets/demo-video.mp4";
+const carGoldenImg = "/assets/CarGolden.png";
+const drivingDogImg = "/assets/DrivingDog.png";
+const greatDaneImg = "/assets/greatdane.jpg";
+const germanShepImg = "/assets/GermanShep.png";
+const logoImage = "/assets/logo.png";
 
 const useCases = [
   "Birthday Greetings",
