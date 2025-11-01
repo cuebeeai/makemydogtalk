@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { GoogleAuth } from "google-auth-library";
+import { addWatermark, isFFmpegAvailable } from "./watermark";
 
 // Check for required environment variables
 if (!process.env.GOOGLE_APPLICATION_CREDENTIALS) {
@@ -35,6 +36,8 @@ export interface VideoGenerationConfig {
   imagePath: string;
   intent?: string;
   tone?: string;
+  voiceStyle?: string;
+  action?: string;
   background?: string;
   aspectRatio?: "16:9" | "9:16" | "1:1";
   resolution?: "720p" | "1080p";
@@ -54,20 +57,32 @@ export interface VideoStatusResult {
 function buildEnhancedPrompt(config: VideoGenerationConfig): string {
   let enhancedPrompt = "";
 
-  // Add tone modifier
-  const toneMap: Record<string, string> = {
-    friendly: "in a cheerful and playful tone",
-    calm: "in a calm and sincere tone",
-    excited: "in an excited and energetic tone",
-    sad: "in a sad and emotional tone",
-    funny: "in a funny and sarcastic tone",
-    professional: "in a professional and clear tone",
-  };
+  // Determine voice characteristics
+  let voiceDescription = "";
 
-  const toneModifier = config.tone ? toneMap[config.tone] || "" : "in a friendly tone";
+  if (config.voiceStyle && config.voiceStyle.trim()) {
+    // Custom voice style provided by user
+    voiceDescription = `with ${config.voiceStyle.trim()}`;
+  } else {
+    // Fall back to preset tone
+    const toneMap: Record<string, string> = {
+      friendly: "in a cheerful and playful tone",
+      calm: "in a calm and sincere tone",
+      excited: "in an excited and energetic tone",
+      sad: "in a sad and emotional tone",
+      funny: "in a funny and sarcastic tone",
+      professional: "in a professional and clear tone",
+    };
+    voiceDescription = config.tone ? toneMap[config.tone] || "in a friendly tone" : "in a friendly tone";
+  }
 
   // Build the main prompt with emphasis on maintaining image style
-  enhancedPrompt = `A talking dog video that exactly matches the visual style of the input image. The dog should appear to be speaking ${toneModifier}, saying: "${config.prompt}"`;
+  enhancedPrompt = `A talking dog video that exactly matches the visual style of the input image. The dog should appear to be speaking ${voiceDescription}, saying: "${config.prompt}"`;
+
+  // Add action if provided
+  if (config.action && config.action.trim()) {
+    enhancedPrompt += `. The dog ${config.action.trim()}`;
+  }
 
   // Add background/scene if provided
   if (config.background && config.background.trim()) {
@@ -112,6 +127,13 @@ export async function generateVideo(config: VideoGenerationConfig): Promise<Vide
     // Vertex AI endpoint for Veo 3.1 video generation
     const endpoint = `https://us-central1-aiplatform.googleapis.com/v1/projects/${VERTEX_AI_PROJECT_ID}/locations/us-central1/publishers/google/models/veo-3.1-generate-preview:predictLongRunning`;
 
+    // Validate aspect ratio - Vertex AI Veo 3.1 only supports 16:9 and 9:16
+    let finalAspectRatio = config.aspectRatio;
+    if (finalAspectRatio === '1:1') {
+      console.warn('1:1 aspect ratio is not supported by Vertex AI. Converting to 16:9.');
+      finalAspectRatio = '16:9';
+    }
+
     const requestBody = {
       instances: [{
         prompt: enhancedPrompt,
@@ -121,7 +143,7 @@ export async function generateVideo(config: VideoGenerationConfig): Promise<Vide
         },
       }],
       parameters: {
-        aspectRatio: config.aspectRatio || '16:9',
+        aspectRatio: finalAspectRatio,
         durationSeconds: 8,
         generateAudio: true,
         sampleCount: 1,
@@ -267,12 +289,49 @@ export async function checkVideoStatus(operationName: string): Promise<VideoStat
       const videoBuffer = Buffer.from(videoData.bytesBase64Encoded, 'base64');
       fs.writeFileSync(videoPath, videoBuffer);
 
-      const localVideoUrl = `/uploads/videos/${videoFileName}`;
-      console.log("Video saved to:", localVideoUrl);
+      console.log("Video saved to:", videoPath);
+
+      // Add watermark to the video
+      let finalVideoPath = videoPath;
+      let finalVideoUrl = `/uploads/videos/${videoFileName}`;
+
+      try {
+        // Check if FFmpeg is available
+        const ffmpegAvailable = await isFFmpegAvailable();
+
+        if (ffmpegAvailable) {
+          console.log("Adding watermark to video...");
+          const watermarkedPath = await addWatermark({
+            inputPath: videoPath,
+            text: "MakeMyDogTalk.com",
+            fontSize: 28,
+            opacity: 0.25,
+            position: "bottom-center",
+          });
+
+          // Delete the original unwatermarked video
+          fs.unlinkSync(videoPath);
+
+          // Use the watermarked video
+          finalVideoPath = watermarkedPath;
+          const watermarkedFileName = path.basename(watermarkedPath);
+          finalVideoUrl = `/uploads/videos/${watermarkedFileName}`;
+
+          console.log("Watermark added successfully");
+        } else {
+          console.warn("FFmpeg not available - video will not have watermark. Install FFmpeg with: brew install ffmpeg");
+        }
+      } catch (watermarkError: any) {
+        console.error("Failed to add watermark:", watermarkError.message);
+        console.log("Continuing without watermark...");
+        // Continue without watermark if it fails
+      }
+
+      console.log("Final video URL:", finalVideoUrl);
 
       return {
         status: "completed",
-        videoUrl: localVideoUrl,
+        videoUrl: finalVideoUrl,
       };
     }
 

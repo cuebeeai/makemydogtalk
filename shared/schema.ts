@@ -1,24 +1,58 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
+
+  // Authentication fields
+  email: text("email").notNull().unique(),
+  password: text("password"), // Nullable for OAuth users
+  googleId: text("google_id").unique(), // For Google OAuth users
+
+  // Profile fields
+  name: text("name").notNull(),
+  picture: text("picture"), // Profile picture URL
+
+  // Account management
+  credits: integer("credits").notNull().default(0),
+  stripeCustomerId: text("stripe_customer_id"),
+
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  lastLogin: timestamp("last_login"),
 });
 
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
+// Schema for email/password signup
+export const insertUserSchema = createInsertSchema(users, {
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(8, "Password must be at least 8 characters").optional(),
+  name: z.string().min(1, "Name is required"),
+}).pick({
+  email: true,
   password: true,
+  name: true,
+});
+
+// Schema for Google OAuth signup
+export const insertOAuthUserSchema = createInsertSchema(users, {
+  email: z.string().email("Invalid email address"),
+  name: z.string().min(1, "Name is required"),
+  googleId: z.string().min(1, "Google ID is required"),
+}).pick({
+  email: true,
+  googleId: true,
+  name: true,
+  picture: true,
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
+export type InsertOAuthUser = z.infer<typeof insertOAuthUserSchema>;
 export type User = typeof users.$inferSelect;
 
 export const videoOperations = pgTable("video_operations", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: text("id").primaryKey(),
   operationId: text("operation_id"),
   status: text("status").notNull(),
   prompt: text("prompt").notNull(),
@@ -26,6 +60,7 @@ export const videoOperations = pgTable("video_operations", {
   videoUrl: text("video_url"),
   error: text("error"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  userId: text("user_id"), // New field
 });
 
 export const insertVideoOperationSchema = createInsertSchema(videoOperations).omit({

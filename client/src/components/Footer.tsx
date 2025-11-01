@@ -5,7 +5,7 @@ export default function Footer() {
   return (
     <footer className="bg-card border-t border-card-border">
       <div className="max-w-7xl mx-auto px-6 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-foreground">MakeMyDogTalk.com</h3>
             <p className="text-sm text-muted-foreground">
@@ -29,10 +29,22 @@ export default function Footer() {
           </div>
 
           <div className="space-y-4">
+            <h4 className="text-sm font-semibold text-foreground">Legal</h4>
+            <nav className="flex flex-col gap-2">
+              <Link href="/terms" className="text-sm text-muted-foreground hover:text-primary transition-colors" data-testid="link-footer-terms">
+                Terms of Service
+              </Link>
+              <Link href="/privacy" className="text-sm text-muted-foreground hover:text-primary transition-colors" data-testid="link-footer-privacy">
+                Privacy Policy
+              </Link>
+            </nav>
+          </div>
+
+          <div className="space-y-4">
             <h4 className="text-sm font-semibold text-foreground">Contact</h4>
             <div className="flex flex-col gap-2">
-              <a 
-                href="mailto:hello@makemydogtalk.com" 
+              <a
+                href="mailto:hello@makemydogtalk.com"
                 className="text-sm text-muted-foreground hover:text-primary transition-colors flex items-center gap-2"
                 data-testid="link-footer-email"
               >

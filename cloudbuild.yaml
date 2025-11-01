@@ -1,7 +1,8 @@
 steps:
-  # Build the container image
+  # Build the container image with increased resources
   - name: 'gcr.io/cloud-builders/docker'
     args: ['build', '-t', 'gcr.io/$PROJECT_ID/makemydogtalk:$COMMIT_SHA', '.']
+    timeout: '1200s'  # 20 minutes timeout
 
   # Push the container image to Container Registry
   - name: 'gcr.io/cloud-builders/docker'
@@ -23,6 +24,14 @@ steps:
       - '--cpu=2'
       - '--min-instances=0'
       - '--max-instances=10'
+
+# Increase build resources
+options:
+  machineType: 'E2_HIGHCPU_8'
+  diskSizeGb: '100'
+
+# Overall timeout
+timeout: '1800s'  # 30 minutes
 
 images:
   - 'gcr.io/$PROJECT_ID/makemydogtalk:$COMMIT_SHA'

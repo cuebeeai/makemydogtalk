@@ -4,6 +4,9 @@
 
 set -e  # Exit on error
 
+# Use full path to gcloud
+GCLOUD="$HOME/google-cloud-sdk/bin/gcloud"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -14,24 +17,24 @@ echo -e "${GREEN}🚀 MakeMyDogTalk.com Deployment Script${NC}"
 echo ""
 
 # Check if gcloud is installed
-if ! command -v gcloud &> /dev/null; then
-    echo -e "${RED}❌ gcloud CLI not found. Please install it first.${NC}"
-    echo "Visit: https://cloud.google.com/sdk/docs/install"
+if [ ! -f "$GCLOUD" ]; then
+    echo -e "${RED}❌ gcloud CLI not found at $GCLOUD${NC}"
+    echo "Please run: curl https://sdk.cloud.google.com | bash"
     exit 1
 fi
 
 # Check if user is logged in
-if ! gcloud auth list --filter=status:ACTIVE --format="value(account)" &> /dev/null; then
+if ! $GCLOUD auth list --filter=status:ACTIVE --format="value(account)" &> /dev/null; then
     echo -e "${YELLOW}⚠️  Not logged in to gcloud. Logging in...${NC}"
-    gcloud auth login
+    $GCLOUD auth login
 fi
 
 # Get project ID
-PROJECT_ID=$(gcloud config get-value project 2>/dev/null)
+PROJECT_ID=$($GCLOUD config get-value project 2>/dev/null)
 if [ -z "$PROJECT_ID" ]; then
     echo -e "${YELLOW}⚠️  No project set. Please enter your project ID:${NC}"
     read PROJECT_ID
-    gcloud config set project $PROJECT_ID
+    $GCLOUD config set project $PROJECT_ID
 fi
 
 echo -e "${GREEN}📦 Using project: ${PROJECT_ID}${NC}"
@@ -42,9 +45,9 @@ SERVICE_NAME="makemydogtalk"
 REGION="us-central1"
 
 echo -e "${YELLOW}🔍 Checking required APIs...${NC}"
-gcloud services enable run.googleapis.com
-gcloud services enable cloudbuild.googleapis.com
-gcloud services enable containerregistry.googleapis.com
+$GCLOUD services enable run.googleapis.com
+$GCLOUD services enable cloudbuild.googleapis.com
+$GCLOUD services enable containerregistry.googleapis.com
 echo -e "${GREEN}✅ APIs enabled${NC}"
 echo ""
 
@@ -52,7 +55,7 @@ echo -e "${YELLOW}🏗️  Building and deploying to Cloud Run...${NC}"
 echo ""
 
 # Deploy using Cloud Build
-gcloud run deploy $SERVICE_NAME \
+$GCLOUD run deploy $SERVICE_NAME \
   --source . \
   --region=$REGION \
   --platform=managed \
@@ -70,20 +73,20 @@ if [ $? -eq 0 ]; then
     echo ""
 
     # Get the service URL
-    SERVICE_URL=$(gcloud run services describe $SERVICE_NAME --region=$REGION --format="value(status.url)")
+    SERVICE_URL=$($GCLOUD run services describe $SERVICE_NAME --region=$REGION --format="value(status.url)")
     echo -e "${GREEN}🌐 Service URL: ${SERVICE_URL}${NC}"
     echo ""
 
     echo -e "${YELLOW}⚠️  IMPORTANT NEXT STEPS:${NC}"
     echo ""
     echo "1. Set environment variables in Cloud Run Console:"
-    echo "   https://console.cloud.google.com/run/detail/${REGION}/${SERVICE_NAME}/variables"
+    echo "   https://console.cloud.google.com/run/detail/${REGION}/${SERVICE_NAME}/variables?project=${PROJECT_ID}"
     echo ""
     echo "2. Update Google OAuth redirect URI to:"
     echo "   https://makemydogtalk.com/auth/callback"
     echo ""
     echo "3. Configure custom domain:"
-    echo "   gcloud run domain-mappings create --service=$SERVICE_NAME --domain=makemydogtalk.com --region=$REGION"
+    echo "   $GCLOUD run domain-mappings create --service=$SERVICE_NAME --domain=makemydogtalk.com --region=$REGION"
     echo ""
     echo "4. Configure Cloudflare DNS to point to Cloud Run IP"
     echo ""
