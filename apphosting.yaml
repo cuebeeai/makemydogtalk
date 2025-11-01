@@ -1,4 +1,6 @@
 # Firebase App Hosting configuration for MakeMyDogTalk
+# Root directory: . (project root where package.json is located)
+
 runConfig:
   # Runtime configuration
   runtime: nodejs20
@@ -16,14 +18,14 @@ runConfig:
   env:
     - variable: NODE_ENV
       value: production
-    - variable: PORT
-      value: "8080"
     - variable: VERTEX_AI_LOCATION
       value: us-central1
 
   # Secret environment variables (to be configured in Firebase console)
   # These will be set up through Firebase App Hosting secrets
   secrets:
+    - variable: DATABASE_URL
+      secret: database_url
     - variable: GOOGLE_CLIENT_ID
       secret: google_client_id
     - variable: GOOGLE_CLIENT_SECRET
@@ -40,11 +42,11 @@ runConfig:
       secret: stripe_secret_key
     - variable: STRIPE_PUBLISHABLE_KEY
       secret: stripe_publishable_key
-    - variable: STRIPE_PRICE_JUMP_LINE
-      secret: stripe_price_jump_line
-    - variable: STRIPE_PRICE_3_PACK
-      secret: stripe_price_3_pack
+    - variable: STRIPE_PRICE_ID_JUMP_LINE
+      secret: stripe_price_id_jump_line
+    - variable: STRIPE_PRICE_ID_THREE_PACK
+      secret: stripe_price_id_three_pack
     - variable: STRIPE_WEBHOOK_SECRET
       secret: stripe_webhook_secret
-    - variable: DATABASE_URL
-      secret: database_url
+    - variable: ADMIN_EMAIL
+      secret: admin_email
