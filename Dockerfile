@@ -17,9 +17,8 @@ COPY . .
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 RUN npm run build
 
-# Keep dotenv in production (needed for runtime)
-# Remove other dev dependencies after build
-RUN npm prune --production && npm install dotenv
+# Don't prune dev dependencies because esbuild bundles them into dist/index.js
+# The bundled code contains imports that need the modules available at runtime
 
 # Expose port 8080 (Cloud Run default)
 EXPOSE 8080
