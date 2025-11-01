@@ -1,11 +1,13 @@
 import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
+import cookieParser from "cookie-parser";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+app.use(cookieParser()); // Required for auth system to read cookies
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -62,10 +64,12 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || '3000', 10);
+  // Use 0.0.0.0 for Cloud Run/Docker, localhost for local development
+  const host = process.env.NODE_ENV === 'production' ? '0.0.0.0' : 'localhost';
   server.listen({
     port,
-    host: "localhost",
+    host,
   }, () => {
-    log(`serving on port ${port}`);
+    log(`serving on port ${port} (host: ${host})`);
   });
 })();
