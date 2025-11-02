@@ -47,6 +47,13 @@ export async function setupVite(app: Express, server: Server) {
     app.use("*", async (req, res, next) => {
       const url = req.originalUrl;
 
+      // Skip backend routes - let them be handled by registered route handlers
+      if (req.path.startsWith('/api') || 
+          req.path.startsWith('/auth') || 
+          req.path.startsWith('/uploads')) {
+        return next();
+      }
+
       try {
         const clientTemplate = path.resolve(
           import.meta.dirname,
@@ -85,9 +92,19 @@ export function serveStatic(app: Express) {
 
   app.use(express.static(distPath));
 
-  // fall through to index.html if the file doesn't exist
-  // Use app.get() instead of app.use() so API routes are not caught
-  app.get("*", (_req, res) => {
+  // SPA fallback - serve index.html for all frontend routes
+  // BUT: Skip API and auth routes (these are handled by backend)
+  // This prevents the catch-all from intercepting backend endpoints
+  app.use((req, res, next) => {
+    // Skip backend routes - let them be handled by registered route handlers
+    if (req.path.startsWith('/api') || 
+        req.path.startsWith('/auth') || 
+        req.path.startsWith('/uploads')) {
+      return next();
+    }
+    
+    // For all other routes, serve the SPA index.html
+    // This allows client-side routing to work
     res.sendFile(path.resolve(distPath, "index.html"));
   });
 }
