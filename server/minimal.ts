@@ -31,6 +31,23 @@ app.get('/api/test-db', (_req, res) => {
   });
 });
 
+// Add a basic auth endpoint that the frontend expects
+app.get('/auth/me', (_req, res) => {
+  res.status(401).json({ 
+    success: false, 
+    error: 'Not authenticated',
+    message: 'Minimal server - authentication not implemented yet'
+  });
+});
+
+// Add other API endpoints the frontend might expect
+app.get('/api/*', (_req, res) => {
+  res.status(501).json({ 
+    error: 'API not implemented in minimal server',
+    message: 'This is a minimal server for testing deployment'
+  });
+});
+
 // Serve static files in production
 const distPath = path.resolve(process.cwd(), "dist", "public");
 console.log('Looking for static files at:', distPath);
@@ -39,8 +56,13 @@ if (fs.existsSync(distPath)) {
   console.log('✅ Static files directory found');
   app.use(express.static(distPath));
   
-  // Fallback to index.html for SPA routing
-  app.use("*", (_req, res) => {
+  // Fallback to index.html for SPA routing (only for non-API routes)
+  app.use("*", (req, res) => {
+    // Don't serve HTML for API routes
+    if (req.path.startsWith('/api/') || req.path.startsWith('/auth/')) {
+      return res.status(404).json({ error: 'API endpoint not found' });
+    }
+    
     const indexPath = path.resolve(distPath, "index.html");
     if (fs.existsSync(indexPath)) {
       res.sendFile(indexPath);
@@ -50,7 +72,12 @@ if (fs.existsSync(distPath)) {
   });
 } else {
   console.log('❌ Static files directory not found');
-  app.use("*", (_req, res) => {
+  app.use("*", (req, res) => {
+    // Don't serve HTML for API routes
+    if (req.path.startsWith('/api/') || req.path.startsWith('/auth/')) {
+      return res.status(404).json({ error: 'API endpoint not found' });
+    }
+    
     res.status(200).send(`
       <h1>Make My Dog Talk - Server Running! (v2)</h1>
       <p>Environment: ${process.env.NODE_ENV}</p>
