@@ -22,6 +22,8 @@ runConfig:
       value: "8080"
     - variable: VERTEX_AI_LOCATION
       value: us-central1
+    - variable: GCS_BUCKET_NAME
+      value: makemydogtalk-videos
 
   # Secret environment variables (configured in Firebase console)
   secrets:

@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { GoogleAuth } from "google-auth-library";
 import { addWatermark, isFFmpegAvailable } from "./watermark";
+import { uploadVideoToGCS } from "./cloudStorage";
 
 // Check for required environment variables
 let serviceAccountCredentials: any;
@@ -311,7 +312,7 @@ export async function checkVideoStatus(operationName: string): Promise<VideoStat
 
       // Add watermark to the video
       let finalVideoPath = videoPath;
-      let finalVideoUrl = `/uploads/videos/${videoFileName}`;
+      let finalVideoUrl: string;
 
       try {
         // Check if FFmpeg is available
@@ -332,9 +333,6 @@ export async function checkVideoStatus(operationName: string): Promise<VideoStat
 
           // Use the watermarked video
           finalVideoPath = watermarkedPath;
-          const watermarkedFileName = path.basename(watermarkedPath);
-          finalVideoUrl = `/uploads/videos/${watermarkedFileName}`;
-
           console.log("Watermark added successfully");
         } else {
           console.warn("FFmpeg not available - video will not have watermark. Install FFmpeg with: brew install ffmpeg");
@@ -343,6 +341,32 @@ export async function checkVideoStatus(operationName: string): Promise<VideoStat
         console.error("Failed to add watermark:", watermarkError.message);
         console.log("Continuing without watermark...");
         // Continue without watermark if it fails
+      }
+
+      // Upload to Google Cloud Storage for persistent storage
+      try {
+        const gcsFileName = `videos/${Date.now()}_${Math.random().toString(36).substring(7)}.mp4`;
+        console.log("📤 Uploading video to Google Cloud Storage...");
+        console.log("📦 GCS Bucket:", process.env.GCS_BUCKET_NAME || 'makemydogtalk-videos');
+        console.log("📁 File:", gcsFileName);
+
+        finalVideoUrl = await uploadVideoToGCS(finalVideoPath, gcsFileName);
+
+        // Clean up local temp file
+        fs.unlinkSync(finalVideoPath);
+        console.log("✅ Local temp file cleaned up");
+        console.log("✅ Video available at:", finalVideoUrl);
+      } catch (uploadError: any) {
+        console.error("❌ Failed to upload to GCS:");
+        console.error("   Error message:", uploadError.message);
+        console.error("   Error stack:", uploadError.stack);
+        console.error("   GCS_BUCKET_NAME:", process.env.GCS_BUCKET_NAME);
+        console.error("   SERVICE_ACCOUNT_JSON present:", !!process.env.SERVICE_ACCOUNT_JSON);
+        console.error("   VERTEX_AI_PROJECT_ID:", process.env.VERTEX_AI_PROJECT_ID);
+
+        // CRITICAL: On Vercel/serverless, local paths will NOT work
+        // We must throw an error instead of silently failing with unusable URLs
+        throw new Error(`Video generated but failed to upload to cloud storage: ${uploadError.message}. Please check GCS configuration.`);
       }
 
       console.log("Final video URL:", finalVideoUrl);
