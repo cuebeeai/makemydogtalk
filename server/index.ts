@@ -79,12 +79,12 @@ app.use((req, res, next) => {
     }
 
     // ALWAYS serve the app on the port specified in the environment variable PORT
-    // Other ports are firewalled. Default to 3000 if not specified.
+    // Other ports are firewalled. Default to 5000 for Replit.
     // this serves both the API and the client.
     // It is the only port that is not firewalled.
-    const port = parseInt(process.env.PORT || '3000', 10);
-    // Use 0.0.0.0 for Cloud Run/Docker, localhost for local development
-    const host = process.env.NODE_ENV === 'production' ? '0.0.0.0' : 'localhost';
+    const port = parseInt(process.env.PORT || '5000', 10);
+    // Always use 0.0.0.0 for proper external access in Replit
+    const host = '0.0.0.0';
     
     console.log(`Attempting to start server on ${host}:${port}...`);
     

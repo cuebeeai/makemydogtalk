@@ -6,12 +6,24 @@
 import { Storage } from '@google-cloud/storage';
 
 // Initialize Google Cloud Storage with service account credentials
-const storage = new Storage({
-  credentials: process.env.SERVICE_ACCOUNT_JSON 
-    ? JSON.parse(process.env.SERVICE_ACCOUNT_JSON)
-    : undefined,
-  projectId: process.env.VERTEX_AI_PROJECT_ID,
-});
+let storage: Storage | null = null;
+let isGCSConfigured = false;
+
+try {
+  if (process.env.SERVICE_ACCOUNT_JSON && process.env.VERTEX_AI_PROJECT_ID) {
+    storage = new Storage({
+      credentials: JSON.parse(process.env.SERVICE_ACCOUNT_JSON),
+      projectId: process.env.VERTEX_AI_PROJECT_ID,
+    });
+    isGCSConfigured = true;
+    console.log('✅ Google Cloud Storage configured successfully');
+  } else {
+    console.warn('❌ Google Cloud Storage not configured. Video uploads will be unavailable.');
+  }
+} catch (error) {
+  console.error('⚠️  Failed to initialize Google Cloud Storage:', error);
+  console.warn('Video uploads will be unavailable.');
+}
 
 const BUCKET_NAME = process.env.GCS_BUCKET_NAME || 'makemydogtalk-videos';
 
@@ -25,6 +37,10 @@ export async function uploadVideoToGCS(
   localFilePath: string,
   destinationFileName: string
 ): Promise<string> {
+  if (!isGCSConfigured || !storage) {
+    throw new Error('Google Cloud Storage is not configured. Please set SERVICE_ACCOUNT_JSON and VERTEX_AI_PROJECT_ID.');
+  }
+
   try {
     console.log(`📤 Uploading video to GCS: ${destinationFileName}`);
     
@@ -57,6 +73,11 @@ export async function uploadVideoToGCS(
  * This should be called during app initialization
  */
 export async function ensureBucketExists(): Promise<void> {
+  if (!isGCSConfigured || !storage) {
+    console.warn('⚠️  Google Cloud Storage not configured. Skipping bucket verification.');
+    return;
+  }
+
   try {
     const bucket = storage.bucket(BUCKET_NAME);
     const [exists] = await bucket.exists();
@@ -91,6 +112,10 @@ export async function ensureBucketExists(): Promise<void> {
  * @param fileName - Name of the file to delete
  */
 export async function deleteVideoFromGCS(fileName: string): Promise<void> {
+  if (!isGCSConfigured || !storage) {
+    throw new Error('Google Cloud Storage is not configured. Please set SERVICE_ACCOUNT_JSON and VERTEX_AI_PROJECT_ID.');
+  }
+
   try {
     const bucket = storage.bucket(BUCKET_NAME);
     await bucket.file(fileName).delete();

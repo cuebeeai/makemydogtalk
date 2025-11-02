@@ -11,15 +11,26 @@ interface CheckoutDialogProps {
   productName: string;
 }
 
-// Memoize the Stripe promise so it's only loaded once
-const stripePromise = fetch('/api/stripe-config')
-  .then((res) => res.json())
-  .then((data) => {
-    if (data.publishableKey) {
-      return loadStripe(data.publishableKey);
-    }
-    throw new Error('Stripe publishable key not found');
-  });
+// Lazy-load Stripe promise only when needed
+let stripePromiseCache: Promise<any> | null = null;
+const getStripePromise = () => {
+  if (stripePromiseCache) return stripePromiseCache;
+  
+  stripePromiseCache = fetch('/api/stripe-config')
+    .then((res) => res.json())
+    .then((data) => {
+      if (data.publishableKey) {
+        return loadStripe(data.publishableKey);
+      }
+      return null;
+    })
+    .catch((error) => {
+      console.warn('Stripe is not configured:', error);
+      return null;
+    });
+  
+  return stripePromiseCache;
+};
 
 export default function CheckoutDialog({ open, onOpenChange, priceId, productName }: CheckoutDialogProps) {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
@@ -80,7 +91,7 @@ export default function CheckoutDialog({ open, onOpenChange, priceId, productNam
 
         <div className="mt-4">
           {open && clientSecret ? (
-            <EmbeddedCheckoutProvider stripe={stripePromise} options={options}>
+            <EmbeddedCheckoutProvider stripe={getStripePromise()} options={options}>
               <EmbeddedCheckout />
             </EmbeddedCheckoutProvider>
           ) : (

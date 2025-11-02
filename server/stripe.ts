@@ -5,10 +5,15 @@ import { promoCodeManager } from './promoCodes';
 import { optionalAuth, requireAuth } from './middleware';
 import { storage } from './storage';
 
-// Initialize Stripe
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-11-20.acacia',
-});
+// Initialize Stripe only if the secret key is provided
+const stripe = process.env.STRIPE_SECRET_KEY 
+  ? new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: '2024-11-20.acacia',
+    })
+  : null;
+
+// Helper to check if Stripe is configured
+const isStripeConfigured = !!stripe;
 
 /**
  * Register Stripe-related routes
@@ -19,6 +24,10 @@ export function registerStripeRoutes(app: Express) {
    * Creates a Stripe Checkout session for purchasing credits
    */
   app.post('/api/create-checkout-session', optionalAuth, async (req: Request, res: Response) => {
+    if (!isStripeConfigured) {
+      return res.status(503).json({ error: 'Payment processing is not configured. Please contact the administrator.' });
+    }
+
     try {
       const { priceId } = req.body;
 
@@ -40,7 +49,7 @@ export function registerStripeRoutes(app: Express) {
 
       // Create a Stripe customer if one doesn't exist
       if (!stripeCustomerId) {
-        const customer = await stripe.customers.create({
+        const customer = await stripe!.customers.create({
           email: userEmail,
           name: req.user?.name,
           metadata: { userId },
@@ -54,7 +63,7 @@ export function registerStripeRoutes(app: Express) {
       }
 
       // Create Checkout Session
-      const session = await stripe.checkout.sessions.create({
+      const session = await stripe!.checkout.sessions.create({
         ui_mode: 'embedded',
         line_items: [
           {
@@ -91,10 +100,14 @@ export function registerStripeRoutes(app: Express) {
    * Check the status of a Stripe Checkout session
    */
   app.get('/api/session-status/:sessionId', async (req: Request, res: Response) => {
+    if (!isStripeConfigured) {
+      return res.status(503).json({ error: 'Payment processing is not configured. Please contact the administrator.' });
+    }
+
     try {
       const { sessionId } = req.params;
 
-      const session = await stripe.checkout.sessions.retrieve(sessionId);
+      const session = await stripe!.checkout.sessions.retrieve(sessionId);
 
       res.json({
         status: session.status,
@@ -127,7 +140,7 @@ export function registerStripeRoutes(app: Express) {
 
       try {
         // Verify webhook signature
-        if (webhookSecret) {
+        if (webhookSecret && stripe) {
           event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
         } else {
           // For testing without webhook secret (development only)
@@ -269,6 +282,10 @@ export function registerStripeRoutes(app: Express) {
 
   // New endpoint to create a Stripe Billing Portal session
   app.post('/api/create-billing-portal-session', optionalAuth, async (req: Request, res: Response) => {
+    if (!isStripeConfigured) {
+      return res.status(503).json({ error: 'Payment processing is not configured. Please contact the administrator.' });
+    }
+
     if (!req.user) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
@@ -278,7 +295,7 @@ export function registerStripeRoutes(app: Express) {
     try {
       // If the user doesn't have a Stripe customer ID, create one
       if (!stripeCustomerId) {
-        const customer = await stripe.customers.create({
+        const customer = await stripe!.customers.create({
           email: req.user.email,
           name: req.user.name,
           metadata: { userId: req.user.id },
@@ -290,7 +307,7 @@ export function registerStripeRoutes(app: Express) {
         console.log(`Created Stripe customer ${stripeCustomerId} for user ${req.user.email}`);
       }
 
-      const portalSession = await stripe.billingPortal.sessions.create({
+      const portalSession = await stripe!.billingPortal.sessions.create({
         customer: stripeCustomerId,
         return_url: `${req.protocol}://${req.get('host')}/dashboard`,
       });

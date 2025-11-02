@@ -9,31 +9,47 @@
 import { GoogleAuth } from 'google-auth-library';
 
 // Parse service account JSON from environment variable
-let serviceAccountKey: any;
+let serviceAccountKey: any = null;
+let auth: GoogleAuth | null = null;
+let VERTEX_AI_PROJECT_ID: string | undefined;
+let VERTEX_AI_LOCATION: string = 'us-central1';
+
 try {
-  if (!process.env.SERVICE_ACCOUNT_JSON) {
-    throw new Error('SERVICE_ACCOUNT_JSON environment variable not set');
+  if (process.env.SERVICE_ACCOUNT_JSON) {
+    serviceAccountKey = JSON.parse(process.env.SERVICE_ACCOUNT_JSON);
+    VERTEX_AI_PROJECT_ID = serviceAccountKey.project_id || process.env.VERTEX_AI_PROJECT_ID;
+    VERTEX_AI_LOCATION = process.env.VERTEX_AI_LOCATION || 'us-central1';
+
+    // Initialize Google Auth with SERVICE ACCOUNT credentials
+    auth = new GoogleAuth({
+      credentials: serviceAccountKey,
+      scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+    });
+    console.log('✅ Vertex AI configured successfully');
+  } else {
+    console.warn('❌ No Google credentials found. Video generation will be unavailable.');
   }
-  serviceAccountKey = JSON.parse(process.env.SERVICE_ACCOUNT_JSON);
 } catch (error) {
-  console.error('Failed to parse SERVICE_ACCOUNT_JSON:', error);
-  throw error;
+  console.error('⚠️  Failed to parse SERVICE_ACCOUNT_JSON:', error);
+  console.warn('Video generation will be unavailable.');
 }
 
-const VERTEX_AI_PROJECT_ID = serviceAccountKey.project_id || process.env.VERTEX_AI_PROJECT_ID;
-const VERTEX_AI_LOCATION = process.env.VERTEX_AI_LOCATION || 'us-central1';
+if (!VERTEX_AI_PROJECT_ID && process.env.SERVICE_ACCOUNT_JSON) {
+  console.warn('❌ Vertex AI Project ID not found. Video generation will be unavailable.');
+}
 
-// Initialize Google Auth with SERVICE ACCOUNT credentials
-const auth = new GoogleAuth({
-  credentials: serviceAccountKey,
-  scopes: ['https://www.googleapis.com/auth/cloud-platform'],
-});
+// Helper to check if Vertex AI is configured
+const isVertexAIConfigured = !!auth && !!VERTEX_AI_PROJECT_ID;
 
 /**
  * Get access token from service account
  * This token is used to call Vertex AI APIs
  */
 async function getServiceAccountToken(): Promise<string> {
+  if (!auth) {
+    throw new Error('Vertex AI is not configured. Please set SERVICE_ACCOUNT_JSON environment variable.');
+  }
+
   const client = await auth.getClient();
   const accessTokenResponse = await client.getAccessToken();
 
@@ -60,6 +76,10 @@ export async function generateTalkingDogVideo(params: {
   operationId: string;
   status: string;
 }> {
+  if (!isVertexAIConfigured) {
+    throw new Error('Video generation is not configured. Please set up Vertex AI credentials.');
+  }
+
   try {
     console.log(`[Vertex AI] Generating video for user: ${params.userId}`);
     console.log(`[Vertex AI] Prompt: ${params.prompt}`);
