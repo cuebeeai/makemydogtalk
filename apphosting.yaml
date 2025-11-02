@@ -66,7 +66,9 @@ runConfig:
 # Build configuration
 buildConfig:
   # Build command to run
-  buildCommand: npm ci && npm run build
+  # Note: Using 'npm install' instead of 'npm ci --production' to include devDependencies
+  # needed by esbuild's dynamic imports in server/vite.ts
+  buildCommand: npm install && npm run build
   
   # Start command for the server
   startCommand: npm start
