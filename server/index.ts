@@ -70,11 +70,11 @@ app.use((req, res, next) => {
     // doesn't interfere with the other routes
     if (app.get("env") === "development") {
       console.log('Setting up Vite for development...');
-      const { setupVite } = await import("./vite");
+      const { setupVite } = await import("./vite.js");
       await setupVite(app, server);
     } else {
       console.log('Setting up static file serving for production...');
-      const { serveStatic } = await import("./vite");
+      const { serveStatic } = await import("./vite.js");
       serveStatic(app);
     }
 
