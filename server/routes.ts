@@ -17,13 +17,22 @@ import { logoutSession as logoutEmailSession } from "./emailAuth";
 // Use /tmp for Vercel serverless (read-only filesystem otherwise)
 const uploadDir = process.env.NODE_ENV === 'production' ? '/tmp/uploads' : 'uploads/temp/';
 
-// Ensure upload directory exists
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
+// Create multer storage configuration
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    // Ensure directory exists when upload happens (lazy creation)
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    cb(null, file.fieldname + '-' + Date.now() + path.extname(file.originalname));
+  }
+});
 
 const upload = multer({
-  dest: uploadDir,
+  storage: storage,
   limits: { fileSize: 10 * 1024 * 1024 },
 });
 

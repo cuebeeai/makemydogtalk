@@ -10,248 +10,6 @@ import multer from "multer";
 import path2 from "path";
 import fs3 from "fs";
 
-// server/storage.ts
-import { randomUUID } from "crypto";
-
-// server/db.ts
-import { drizzle } from "drizzle-orm/neon-http";
-import { neon } from "@neondatabase/serverless";
-
-// shared/schema.ts
-import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, integer } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
-import { z } from "zod";
-var users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  // Authentication fields
-  email: text("email").notNull().unique(),
-  password: text("password"),
-  // Nullable for OAuth users
-  googleId: text("google_id").unique(),
-  // For Google OAuth users
-  // Profile fields
-  name: text("name").notNull(),
-  picture: text("picture"),
-  // Profile picture URL
-  // Account management
-  credits: integer("credits").notNull().default(0),
-  stripeCustomerId: text("stripe_customer_id"),
-  // Timestamps
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  lastLogin: timestamp("last_login")
-});
-var insertUserSchema = createInsertSchema(users, {
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(8, "Password must be at least 8 characters").optional(),
-  name: z.string().min(1, "Name is required")
-}).pick({
-  email: true,
-  password: true,
-  name: true
-});
-var insertOAuthUserSchema = createInsertSchema(users, {
-  email: z.string().email("Invalid email address"),
-  name: z.string().min(1, "Name is required"),
-  googleId: z.string().min(1, "Google ID is required")
-}).pick({
-  email: true,
-  googleId: true,
-  name: true,
-  picture: true
-});
-var videoOperations = pgTable("video_operations", {
-  id: text("id").primaryKey(),
-  operationId: text("operation_id"),
-  status: text("status").notNull(),
-  prompt: text("prompt").notNull(),
-  imagePath: text("image_path"),
-  videoUrl: text("video_url"),
-  error: text("error"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  userId: text("user_id")
-  // New field
-});
-var insertVideoOperationSchema = createInsertSchema(videoOperations).omit({
-  id: true,
-  createdAt: true
-});
-
-// server/db.ts
-if (!process.env.DATABASE_URL) {
-  console.error("\u274C DATABASE_URL environment variable is not set!");
-  console.error("Please configure DATABASE_URL in Firebase App Hosting secrets.");
-  throw new Error(
-    "DATABASE_URL must be set. Did you forget to provision a database?"
-  );
-}
-console.log("\u2705 DATABASE_URL is configured, initializing database connection...");
-var sql2 = neon(process.env.DATABASE_URL);
-var db = drizzle(sql2, {
-  schema: { users, videoOperations }
-});
-console.log("\u2705 Database connection initialized successfully");
-
-// server/storage.ts
-import { eq } from "drizzle-orm";
-var MemStorage = class {
-  users;
-  videoOperations;
-  constructor() {
-    this.users = /* @__PURE__ */ new Map();
-    this.videoOperations = /* @__PURE__ */ new Map();
-  }
-  async getUser(id) {
-    return this.users.get(id);
-  }
-  async getUserByEmail(email) {
-    return Array.from(this.users.values()).find(
-      (user) => user.email === email
-    );
-  }
-  async getUserByGoogleId(googleId) {
-    return Array.from(this.users.values()).find(
-      (user) => user.googleId === googleId
-    );
-  }
-  async createUser(insertUser) {
-    const id = randomUUID();
-    const user = {
-      id,
-      email: insertUser.email,
-      password: insertUser.password ?? null,
-      googleId: null,
-      name: insertUser.name,
-      picture: null,
-      credits: 0,
-      stripeCustomerId: null,
-      createdAt: /* @__PURE__ */ new Date(),
-      lastLogin: null
-    };
-    this.users.set(id, user);
-    return user;
-  }
-  async createOAuthUser(insertUser) {
-    const id = randomUUID();
-    const user = {
-      id,
-      email: insertUser.email,
-      password: null,
-      googleId: insertUser.googleId,
-      name: insertUser.name,
-      picture: insertUser.picture ?? null,
-      credits: 0,
-      stripeCustomerId: null,
-      createdAt: /* @__PURE__ */ new Date(),
-      lastLogin: /* @__PURE__ */ new Date()
-    };
-    this.users.set(id, user);
-    return user;
-  }
-  async updateUser(id, updates) {
-    const user = this.users.get(id);
-    if (!user) return void 0;
-    const updated = { ...user, ...updates };
-    this.users.set(id, updated);
-    return updated;
-  }
-  async createVideoOperation(insertOperation) {
-    const id = randomUUID();
-    const operation = {
-      id,
-      operationId: insertOperation.operationId ?? null,
-      status: insertOperation.status,
-      prompt: insertOperation.prompt,
-      imagePath: insertOperation.imagePath ?? null,
-      videoUrl: insertOperation.videoUrl ?? null,
-      error: insertOperation.error ?? null,
-      createdAt: /* @__PURE__ */ new Date(),
-      userId: insertOperation.userId ?? null
-    };
-    this.videoOperations.set(id, operation);
-    return operation;
-  }
-  async getVideoOperation(id) {
-    return this.videoOperations.get(id);
-  }
-  async updateVideoOperation(id, updates) {
-    const operation = this.videoOperations.get(id);
-    if (!operation) return void 0;
-    const updated = { ...operation, ...updates };
-    this.videoOperations.set(id, updated);
-    return updated;
-  }
-  async getVideosByUserId(userId) {
-    return Array.from(this.videoOperations.values()).filter(
-      (op) => op.userId === userId
-    );
-  }
-};
-var DbStorage = class {
-  async getUser(id) {
-    const result = await db.select().from(users).where(eq(users.id, id));
-    return result[0];
-  }
-  async getUserByEmail(email) {
-    const result = await db.select().from(users).where(eq(users.email, email));
-    return result[0];
-  }
-  async getUserByGoogleId(googleId) {
-    const result = await db.select().from(users).where(eq(users.googleId, googleId));
-    return result[0];
-  }
-  async createUser(insertUser) {
-    const result = await db.insert(users).values({
-      email: insertUser.email,
-      password: insertUser.password,
-      name: insertUser.name,
-      credits: 0
-    }).returning();
-    return result[0];
-  }
-  async createOAuthUser(insertUser) {
-    const result = await db.insert(users).values({
-      email: insertUser.email,
-      googleId: insertUser.googleId,
-      name: insertUser.name,
-      picture: insertUser.picture,
-      credits: 0,
-      lastLogin: /* @__PURE__ */ new Date()
-    }).returning();
-    return result[0];
-  }
-  async updateUser(id, updates) {
-    const result = await db.update(users).set(updates).where(eq(users.id, id)).returning();
-    return result[0];
-  }
-  async createVideoOperation(insertOperation) {
-    const id = randomUUID();
-    const result = await db.insert(videoOperations).values({
-      id,
-      operationId: insertOperation.operationId,
-      status: insertOperation.status,
-      prompt: insertOperation.prompt,
-      imagePath: insertOperation.imagePath,
-      videoUrl: insertOperation.videoUrl,
-      error: insertOperation.error,
-      userId: insertOperation.userId
-    }).returning();
-    return result[0];
-  }
-  async getVideoOperation(id) {
-    const result = await db.select().from(videoOperations).where(eq(videoOperations.id, id));
-    return result[0];
-  }
-  async updateVideoOperation(id, updates) {
-    const result = await db.update(videoOperations).set(updates).where(eq(videoOperations.id, id)).returning();
-    return result[0];
-  }
-  async getVideosByUserId(userId) {
-    return await db.select().from(videoOperations).where(eq(videoOperations.userId, userId));
-  }
-};
-var storage = process.env.DATABASE_URL ? new DbStorage() : new MemStorage();
-
 // server/veo.ts
 import * as fs2 from "fs";
 import * as path from "path";
@@ -958,6 +716,250 @@ var promoCodeManager = new PromoCodeManager();
 
 // server/auth.ts
 import { OAuth2Client } from "google-auth-library";
+
+// server/storage.ts
+import { randomUUID } from "crypto";
+
+// server/db.ts
+import { drizzle } from "drizzle-orm/neon-http";
+import { neon } from "@neondatabase/serverless";
+
+// shared/schema.ts
+import { sql } from "drizzle-orm";
+import { pgTable, text, varchar, timestamp, integer } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod";
+var users = pgTable("users", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  // Authentication fields
+  email: text("email").notNull().unique(),
+  password: text("password"),
+  // Nullable for OAuth users
+  googleId: text("google_id").unique(),
+  // For Google OAuth users
+  // Profile fields
+  name: text("name").notNull(),
+  picture: text("picture"),
+  // Profile picture URL
+  // Account management
+  credits: integer("credits").notNull().default(0),
+  stripeCustomerId: text("stripe_customer_id"),
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  lastLogin: timestamp("last_login")
+});
+var insertUserSchema = createInsertSchema(users, {
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(8, "Password must be at least 8 characters").optional(),
+  name: z.string().min(1, "Name is required")
+}).pick({
+  email: true,
+  password: true,
+  name: true
+});
+var insertOAuthUserSchema = createInsertSchema(users, {
+  email: z.string().email("Invalid email address"),
+  name: z.string().min(1, "Name is required"),
+  googleId: z.string().min(1, "Google ID is required")
+}).pick({
+  email: true,
+  googleId: true,
+  name: true,
+  picture: true
+});
+var videoOperations = pgTable("video_operations", {
+  id: text("id").primaryKey(),
+  operationId: text("operation_id"),
+  status: text("status").notNull(),
+  prompt: text("prompt").notNull(),
+  imagePath: text("image_path"),
+  videoUrl: text("video_url"),
+  error: text("error"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  userId: text("user_id")
+  // New field
+});
+var insertVideoOperationSchema = createInsertSchema(videoOperations).omit({
+  id: true,
+  createdAt: true
+});
+
+// server/db.ts
+if (!process.env.DATABASE_URL) {
+  console.error("\u274C DATABASE_URL environment variable is not set!");
+  console.error("Please configure DATABASE_URL in Firebase App Hosting secrets.");
+  throw new Error(
+    "DATABASE_URL must be set. Did you forget to provision a database?"
+  );
+}
+console.log("\u2705 DATABASE_URL is configured, initializing database connection...");
+var sql2 = neon(process.env.DATABASE_URL);
+var db = drizzle(sql2, {
+  schema: { users, videoOperations }
+});
+console.log("\u2705 Database connection initialized successfully");
+
+// server/storage.ts
+import { eq } from "drizzle-orm";
+var MemStorage = class {
+  users;
+  videoOperations;
+  constructor() {
+    this.users = /* @__PURE__ */ new Map();
+    this.videoOperations = /* @__PURE__ */ new Map();
+  }
+  async getUser(id) {
+    return this.users.get(id);
+  }
+  async getUserByEmail(email) {
+    return Array.from(this.users.values()).find(
+      (user) => user.email === email
+    );
+  }
+  async getUserByGoogleId(googleId) {
+    return Array.from(this.users.values()).find(
+      (user) => user.googleId === googleId
+    );
+  }
+  async createUser(insertUser) {
+    const id = randomUUID();
+    const user = {
+      id,
+      email: insertUser.email,
+      password: insertUser.password ?? null,
+      googleId: null,
+      name: insertUser.name,
+      picture: null,
+      credits: 0,
+      stripeCustomerId: null,
+      createdAt: /* @__PURE__ */ new Date(),
+      lastLogin: null
+    };
+    this.users.set(id, user);
+    return user;
+  }
+  async createOAuthUser(insertUser) {
+    const id = randomUUID();
+    const user = {
+      id,
+      email: insertUser.email,
+      password: null,
+      googleId: insertUser.googleId,
+      name: insertUser.name,
+      picture: insertUser.picture ?? null,
+      credits: 0,
+      stripeCustomerId: null,
+      createdAt: /* @__PURE__ */ new Date(),
+      lastLogin: /* @__PURE__ */ new Date()
+    };
+    this.users.set(id, user);
+    return user;
+  }
+  async updateUser(id, updates) {
+    const user = this.users.get(id);
+    if (!user) return void 0;
+    const updated = { ...user, ...updates };
+    this.users.set(id, updated);
+    return updated;
+  }
+  async createVideoOperation(insertOperation) {
+    const id = randomUUID();
+    const operation = {
+      id,
+      operationId: insertOperation.operationId ?? null,
+      status: insertOperation.status,
+      prompt: insertOperation.prompt,
+      imagePath: insertOperation.imagePath ?? null,
+      videoUrl: insertOperation.videoUrl ?? null,
+      error: insertOperation.error ?? null,
+      createdAt: /* @__PURE__ */ new Date(),
+      userId: insertOperation.userId ?? null
+    };
+    this.videoOperations.set(id, operation);
+    return operation;
+  }
+  async getVideoOperation(id) {
+    return this.videoOperations.get(id);
+  }
+  async updateVideoOperation(id, updates) {
+    const operation = this.videoOperations.get(id);
+    if (!operation) return void 0;
+    const updated = { ...operation, ...updates };
+    this.videoOperations.set(id, updated);
+    return updated;
+  }
+  async getVideosByUserId(userId) {
+    return Array.from(this.videoOperations.values()).filter(
+      (op) => op.userId === userId
+    );
+  }
+};
+var DbStorage = class {
+  async getUser(id) {
+    const result = await db.select().from(users).where(eq(users.id, id));
+    return result[0];
+  }
+  async getUserByEmail(email) {
+    const result = await db.select().from(users).where(eq(users.email, email));
+    return result[0];
+  }
+  async getUserByGoogleId(googleId) {
+    const result = await db.select().from(users).where(eq(users.googleId, googleId));
+    return result[0];
+  }
+  async createUser(insertUser) {
+    const result = await db.insert(users).values({
+      email: insertUser.email,
+      password: insertUser.password,
+      name: insertUser.name,
+      credits: 0
+    }).returning();
+    return result[0];
+  }
+  async createOAuthUser(insertUser) {
+    const result = await db.insert(users).values({
+      email: insertUser.email,
+      googleId: insertUser.googleId,
+      name: insertUser.name,
+      picture: insertUser.picture,
+      credits: 0,
+      lastLogin: /* @__PURE__ */ new Date()
+    }).returning();
+    return result[0];
+  }
+  async updateUser(id, updates) {
+    const result = await db.update(users).set(updates).where(eq(users.id, id)).returning();
+    return result[0];
+  }
+  async createVideoOperation(insertOperation) {
+    const id = randomUUID();
+    const result = await db.insert(videoOperations).values({
+      id,
+      operationId: insertOperation.operationId,
+      status: insertOperation.status,
+      prompt: insertOperation.prompt,
+      imagePath: insertOperation.imagePath,
+      videoUrl: insertOperation.videoUrl,
+      error: insertOperation.error,
+      userId: insertOperation.userId
+    }).returning();
+    return result[0];
+  }
+  async getVideoOperation(id) {
+    const result = await db.select().from(videoOperations).where(eq(videoOperations.id, id));
+    return result[0];
+  }
+  async updateVideoOperation(id, updates) {
+    const result = await db.update(videoOperations).set(updates).where(eq(videoOperations.id, id)).returning();
+    return result[0];
+  }
+  async getVideosByUserId(userId) {
+    return await db.select().from(videoOperations).where(eq(videoOperations.userId, userId));
+  }
+};
+var storage = process.env.DATABASE_URL ? new DbStorage() : new MemStorage();
+
+// server/auth.ts
 import { randomBytes } from "crypto";
 var oauth2Client = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID,
@@ -1552,11 +1554,19 @@ var authRoutes_default = router;
 
 // server/routes.ts
 var uploadDir = process.env.NODE_ENV === "production" ? "/tmp/uploads" : "uploads/temp/";
-if (!fs3.existsSync(uploadDir)) {
-  fs3.mkdirSync(uploadDir, { recursive: true });
-}
+var storage2 = multer.diskStorage({
+  destination: function(req, file, cb) {
+    if (!fs3.existsSync(uploadDir)) {
+      fs3.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: function(req, file, cb) {
+    cb(null, file.fieldname + "-" + Date.now() + path2.extname(file.originalname));
+  }
+});
 var upload = multer({
-  dest: uploadDir,
+  storage: storage2,
   limits: { fileSize: 10 * 1024 * 1024 }
 });
 async function registerRoutes(app2) {
@@ -1624,7 +1634,7 @@ async function registerRoutes(app2) {
         let hasCredits = false;
         let creditBalance = 0;
         if (req.user) {
-          const currentUser = await storage.getUser(req.user.id);
+          const currentUser = await storage2.getUser(req.user.id);
           creditBalance = currentUser?.credits || 0;
           hasCredits = creditBalance > 0;
         } else {
@@ -1633,14 +1643,14 @@ async function registerRoutes(app2) {
         }
         if (useCredit && hasCredits) {
           if (req.user) {
-            const currentUser = await storage.getUser(req.user.id);
+            const currentUser = await storage2.getUser(req.user.id);
             if (!currentUser || (currentUser.credits || 0) < 1) {
               return res.status(400).json({
                 error: "Failed to deduct credit",
                 message: "You don't have enough credits"
               });
             }
-            const updatedUser = await storage.updateUser(req.user.id, {
+            const updatedUser = await storage2.updateUser(req.user.id, {
               credits: currentUser.credits - 1
             });
             if (!updatedUser) {
@@ -1701,7 +1711,7 @@ async function registerRoutes(app2) {
         voiceStyle,
         action
       });
-      const operation = await storage.createVideoOperation({
+      const operation = await storage2.createVideoOperation({
         operationId: result.operation.name || null,
         status: "processing",
         prompt,
@@ -1732,7 +1742,7 @@ async function registerRoutes(app2) {
   app2.get("/api/video-status/:id", optionalAuth, async (req, res) => {
     try {
       const operationId = req.params.id;
-      const operation = await storage.getVideoOperation(operationId);
+      const operation = await storage2.getVideoOperation(operationId);
       if (!operation) {
         return res.status(404).json({ error: "Operation not found" });
       }
@@ -1750,7 +1760,7 @@ async function registerRoutes(app2) {
       }
       if (operation.operationId) {
         const statusResult = await checkVideoStatus(operation.operationId);
-        await storage.updateVideoOperation(operationId, {
+        await storage2.updateVideoOperation(operationId, {
           status: statusResult.status,
           videoUrl: statusResult.videoUrl || null,
           error: statusResult.error || null
@@ -1777,7 +1787,7 @@ async function registerRoutes(app2) {
       return res.status(401).json({ error: "Not authenticated" });
     }
     try {
-      const videos = await storage.getVideosByUserId(req.user.id);
+      const videos = await storage2.getVideosByUserId(req.user.id);
       res.json(videos);
     } catch (error) {
       console.error("Error in /api/my-videos:", error);
