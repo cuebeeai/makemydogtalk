@@ -333,16 +333,27 @@ async function isFFmpegAvailable() {
 }
 
 // server/veo.ts
-if (!process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-  console.error("Google Application Credentials not found. Please set the GOOGLE_APPLICATION_CREDENTIALS environment variable");
+var serviceAccountCredentials;
+if (process.env.SERVICE_ACCOUNT_JSON) {
+  try {
+    serviceAccountCredentials = JSON.parse(process.env.SERVICE_ACCOUNT_JSON);
+    console.log("\u2705 Using SERVICE_ACCOUNT_JSON from environment");
+  } catch (error) {
+    console.error("\u274C Failed to parse SERVICE_ACCOUNT_JSON:", error);
+  }
+} else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+  console.log("\u2705 Using GOOGLE_APPLICATION_CREDENTIALS file path");
+} else {
+  console.error("\u274C No Google credentials found. Please set SERVICE_ACCOUNT_JSON or GOOGLE_APPLICATION_CREDENTIALS");
 }
 if (!process.env.VERTEX_AI_PROJECT_ID) {
-  console.error("Vertex AI Project ID not found. Please set the VERTEX_AI_PROJECT_ID environment variable");
+  console.error("\u274C Vertex AI Project ID not found. Please set the VERTEX_AI_PROJECT_ID environment variable");
 }
 var VERTEX_AI_PROJECT_ID = process.env.VERTEX_AI_PROJECT_ID;
 var VERTEX_AI_LOCATION = process.env.VERTEX_AI_LOCATION || "us-central1";
 var auth = new GoogleAuth({
-  keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS,
+  credentials: serviceAccountCredentials,
+  keyFilename: serviceAccountCredentials ? void 0 : process.env.GOOGLE_APPLICATION_CREDENTIALS,
   scopes: ["https://www.googleapis.com/auth/cloud-platform"]
 });
 async function getAccessToken() {
