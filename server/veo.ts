@@ -275,7 +275,11 @@ export async function checkVideoStatus(operationName: string): Promise<VideoStat
         };
       }
 
-      const uploadsDir = path.join(process.cwd(), "uploads", "videos");
+      // Use /tmp for Vercel serverless, regular uploads for other environments
+      const uploadsDir = process.env.NODE_ENV === 'production'
+        ? path.join('/tmp', 'videos')
+        : path.join(process.cwd(), "uploads", "videos");
+
       if (!fs.existsSync(uploadsDir)) {
         fs.mkdirSync(uploadsDir, { recursive: true });
       }

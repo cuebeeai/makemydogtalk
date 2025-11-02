@@ -513,7 +513,7 @@ async function checkVideoStatus(operationName) {
           error: "No video data in response"
         };
       }
-      const uploadsDir = path.join(process.cwd(), "uploads", "videos");
+      const uploadsDir = process.env.NODE_ENV === "production" ? path.join("/tmp", "videos") : path.join(process.cwd(), "uploads", "videos");
       if (!fs2.existsSync(uploadsDir)) {
         fs2.mkdirSync(uploadsDir, { recursive: true });
       }
@@ -1540,8 +1540,12 @@ router.get("/auth/callback", processOAuthCallback);
 var authRoutes_default = router;
 
 // server/routes.ts
+var uploadDir = process.env.NODE_ENV === "production" ? "/tmp/uploads" : "uploads/temp/";
+if (!fs3.existsSync(uploadDir)) {
+  fs3.mkdirSync(uploadDir, { recursive: true });
+}
 var upload = multer({
-  dest: "uploads/temp/",
+  dest: uploadDir,
   limits: { fileSize: 10 * 1024 * 1024 }
 });
 async function registerRoutes(app2) {

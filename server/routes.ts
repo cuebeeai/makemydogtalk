@@ -14,8 +14,16 @@ import authRoutes from "./authRoutes";
 import { logoutSession } from "./auth";
 import { logoutSession as logoutEmailSession } from "./emailAuth";
 
+// Use /tmp for Vercel serverless (read-only filesystem otherwise)
+const uploadDir = process.env.NODE_ENV === 'production' ? '/tmp/uploads' : 'uploads/temp/';
+
+// Ensure upload directory exists
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
 const upload = multer({
-  dest: "uploads/temp/",
+  dest: uploadDir,
   limits: { fileSize: 10 * 1024 * 1024 },
 });
 
