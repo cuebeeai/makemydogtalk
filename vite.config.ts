@@ -5,6 +5,7 @@ import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 import basicSsl from '@vitejs/plugin-basic-ssl';
 
 export default defineConfig({
+  base: "/",
   plugins: [
     react(),
     runtimeErrorOverlay(),

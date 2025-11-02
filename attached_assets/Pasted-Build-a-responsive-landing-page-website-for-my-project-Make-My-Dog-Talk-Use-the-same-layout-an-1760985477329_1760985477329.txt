@@ -1,0 +1,100 @@
+Build a responsive landing page website for my project **Make My Dog Talk**.
+
+Use the same layout and color theme as this pet service Canva template:
+https://www.etsy.com/listing/4334016432/pet-services-website-canva-website
+
+🎯 GOAL:
+We're building a fun and professional landing page for an AI app where users upload a dog photo + prompt, and it generates a short 6-second talking video of their dog.
+
+We're NOT using any of the dog photos or grooming content from the template — just cloning the structure and styling.
+
+---
+
+🧱 TECH STACK:
+- React + TailwindCSS (or Next.js if you prefer)
+- Fully responsive (desktop, tablet, mobile)
+- Light blue theme (like the Canva template)
+- Rounded buttons, soft borders, and clean layout
+- Modern sans-serif font (Inter or similar)
+
+---
+
+📐 PAGE STRUCTURE:
+
+🟦 HEADER:
+- Left: Logo placeholder ("🐾 Make My Dog Talk")
+- Right: Navigation links → Home, Features, Examples, Pricing, Contact
+
+---
+
+🟩 HERO SECTION (full width):
+- Left:
+  - Big bold title: “Turn Your Dog Into a Star”
+  - Subtitle: “Generate a 6-second talking video from a photo + prompt.”
+  - Input form:
+    - Upload dog photo (file input)
+    - Textbox for user prompt
+    - CTA button: “Make My Dog Talk 🎥”
+- Right:
+  - Dog image placeholder (swap in our own branded dog later)
+  - Circle around dog image with subtle styling
+  - Optional: play button overlay with text: “Watch Sample”
+
+---
+
+👋 "HELLO" SECTION (About App):
+- Title: “hello!”
+- Paragraph about the tool:
+  “Make My Dog Talk is a fun AI tool that turns your dog’s photo into a 6-second video. Just upload, describe what your dog should say or do, and let our AI bring it to life.”
+
+---
+
+💬 “WHY CHOOSE US” SECTION:
+- Use 3–4 feature bubbles styled like the original
+- Features:
+  - “One free video per user”
+  - “Custom animation from your real photo”
+  - “No sign-up required”
+  - “Upgrade to remove watermark”
+
+---
+
+📸 SAMPLE VIDEO SECTION:
+- Embed a looping video (optional placeholder for now)
+- Section title: “See how it works”
+- Use cards or columns with examples: “Birthday”, “Funny Voice”, “Dog Says I Love You”
+
+---
+
+💰 PRICING SECTION:
+- Replace “rates” with AI video pricing
+- Options:
+  - Free tier: 1 video with watermark
+  - Pro: $5/video (no watermark)
+  - Bundle: 5 videos for $20
+
+---
+
+🦴 FEATURE HIGHLIGHTS (Final Section):
+- CTA block with testimonial or social proof
+- Icons like paw print, play icon, speech bubble
+- “Start your dog’s first video now”
+
+---
+
+📞 FOOTER:
+- Contact link, email address, social icons
+- Light blue background
+
+---
+
+📦 OTHER NOTES:
+- Use Tailwind for spacing, typography, responsive behavior
+- All CTAs log to the console for now
+- Don’t use any dog or image from the template – replace with a stock dog or placeholder
+
+---
+
+🔁 Deliver the full layout, modular React components, and working file upload + textbox UI in the hero. We’ll hook up the video gen API later.
+
+Let’s build it!
