@@ -68,6 +68,9 @@ buildConfig:
   # Build command to run
   buildCommand: npm run build
   
+  # Start command for the server
+  startCommand: npm start
+  
   # Output directory (where built files are located)
   outputDirectory: dist/public
   
