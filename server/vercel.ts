@@ -65,7 +65,7 @@ app.use((req, res, next) => {
 // This ensures the app is fully initialized before Vercel receives it
 console.log('Initializing Vercel serverless function...');
 console.log('NODE_ENV:', process.env.NODE_ENV);
-console.log('BUILD_ID: v2.0.0 - GCS Upload Enabled');
+console.log('BUILD_ID: v3.0.0-FORCE-REBUILD-' + Date.now());
 
 // Initialize Google Cloud Storage bucket
 try {
