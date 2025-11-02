@@ -92,10 +92,10 @@ export function serveStatic(app: Express) {
 
   app.use(express.static(distPath));
 
-  // SPA fallback - serve index.html for all frontend routes
+  // SPA fallback - serve index.html for all frontend routes (GET requests only)
   // BUT: Skip API and auth routes (these are handled by backend)
   // This prevents the catch-all from intercepting backend endpoints
-  app.use((req, res, next) => {
+  app.get("*", (req, res, next) => {
     // Skip backend routes - let them be handled by registered route handlers
     if (req.path.startsWith('/api') || 
         req.path.startsWith('/auth') || 
@@ -103,7 +103,7 @@ export function serveStatic(app: Express) {
       return next();
     }
     
-    // For all other routes, serve the SPA index.html
+    // For all other GET requests, serve the SPA index.html
     // This allows client-side routing to work
     res.sendFile(path.resolve(distPath, "index.html"));
   });
