@@ -52,7 +52,7 @@ if (fs.existsSync(distPath)) {
   console.log('❌ Static files directory not found');
   app.use("*", (_req, res) => {
     res.status(200).send(`
-      <h1>Make My Dog Talk - Server Running!</h1>
+      <h1>Make My Dog Talk - Server Running! (v2)</h1>
       <p>Environment: ${process.env.NODE_ENV}</p>
       <p>Port: ${process.env.PORT}</p>
       <p>Database configured: ${!!process.env.DATABASE_URL}</p>
