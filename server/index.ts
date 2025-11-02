@@ -2,12 +2,22 @@ import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
 import cookieParser from "cookie-parser";
 import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser()); // Required for auth system to read cookies
+
+// Simple logging middleware
+function log(message: string, source = "express") {
+  const formattedTime = new Date().toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  });
+  console.log(`${formattedTime} [${source}] ${message}`);
+}
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -60,9 +70,11 @@ app.use((req, res, next) => {
     // doesn't interfere with the other routes
     if (app.get("env") === "development") {
       console.log('Setting up Vite for development...');
+      const { setupVite } = await import("./vite");
       await setupVite(app, server);
     } else {
       console.log('Setting up static file serving for production...');
+      const { serveStatic } = await import("./vite");
       serveStatic(app);
     }
 
