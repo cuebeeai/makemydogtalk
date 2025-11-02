@@ -73,3 +73,7 @@ buildConfig:
   
   # Root directory (where package.json is located)
   rootDirectory: .
+  
+  # Cloud Build options to fix logging configuration
+  options:
+    logging: CLOUD_LOGGING_ONLY
