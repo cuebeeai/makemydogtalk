@@ -4,16 +4,16 @@
 runConfig:
   # Runtime configuration
   runtime: nodejs20
-  
+
   # CPU and Memory allocation
   cpu: 2
   memoryMiB: 2048
-  
+
   # Concurrency settings
   minInstances: 0
   maxInstances: 10
   concurrency: 80
-  
+
   # Environment variables (non-sensitive)
   env:
     - variable: NODE_ENV
@@ -22,13 +22,13 @@ runConfig:
       value: "8080"
     - variable: VERTEX_AI_LOCATION
       value: us-central1
-  
+
   # Secret environment variables (configured in Firebase console)
   secrets:
     # Database
     - variable: DATABASE_URL
       secret: database_url
-    
+
     # Google OAuth Authentication
     - variable: GOOGLE_CLIENT_ID
       secret: google_client_id
@@ -36,17 +36,17 @@ runConfig:
       secret: google_client_secret
     - variable: OAUTH_REDIRECT_URI
       secret: oauth_redirect_uri
-    
+
     # Vertex AI Configuration
     - variable: SERVICE_ACCOUNT_JSON
       secret: service_account_json
     - variable: VERTEX_AI_PROJECT_ID
       secret: vertex_ai_project_id
-    
+
     # Session Management
     - variable: SESSION_SECRET
       secret: session_secret
-    
+
     # Stripe Payment Configuration
     - variable: STRIPE_SECRET_KEY
       secret: stripe_secret_key
@@ -58,7 +58,7 @@ runConfig:
       secret: stripe_price_id_three_pack
     - variable: STRIPE_WEBHOOK_SECRET
       secret: stripe_webhook_secret
-    
+
     # Admin Configuration
     - variable: ADMIN_EMAIL
       secret: admin_email
@@ -66,7 +66,7 @@ runConfig:
 # Build configuration
 buildConfig:
   # Build command to run
-  buildCommand: npm run build
+  buildCommand: npm ci && npm run build
   
   # Start command for the server
   startCommand: npm start
