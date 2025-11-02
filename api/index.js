@@ -1925,6 +1925,7 @@ app.use((req, res, next) => {
 });
 console.log("Initializing Vercel serverless function...");
 console.log("NODE_ENV:", process.env.NODE_ENV);
+console.log("BUILD_ID: v2.0.0 - GCS Upload Enabled");
 try {
   console.log("\u{1FAA3} Initializing Google Cloud Storage...");
   await ensureBucketExists();
