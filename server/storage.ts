@@ -136,8 +136,13 @@ export class DbStorage implements IStorage {
   }
 
   async getUserByGoogleId(googleId: string): Promise<User | undefined> {
-    const result = await db.select().from(users).where(eq(users.googleId, googleId));
-    return result[0];
+    try {
+      const result = await db.select().from(users).where(eq(users.googleId, googleId)).limit(1);
+      return result?.[0];
+    } catch (error) {
+      console.error('Error in getUserByGoogleId:', error);
+      return undefined;
+    }
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
