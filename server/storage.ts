@@ -193,18 +193,25 @@ export class DbStorage implements IStorage {
   }
 
   async createVideoOperation(insertOperation: InsertVideoOperation): Promise<VideoOperation> {
-    const id = randomUUID();
-    const result = await db.insert(videoOperations).values({
-      id,
-      operationId: insertOperation.operationId,
-      status: insertOperation.status,
-      prompt: insertOperation.prompt,
-      imagePath: insertOperation.imagePath,
-      videoUrl: insertOperation.videoUrl,
-      error: insertOperation.error,
-      userId: insertOperation.userId,
-    }).returning();
-    return result[0];
+    try {
+      const id = randomUUID();
+      console.log(`DbStorage.createVideoOperation: Creating operation with id=${id}, userId=${insertOperation.userId}`);
+      const result = await db.insert(videoOperations).values({
+        id,
+        operationId: insertOperation.operationId,
+        status: insertOperation.status,
+        prompt: insertOperation.prompt,
+        imagePath: insertOperation.imagePath,
+        videoUrl: insertOperation.videoUrl,
+        error: insertOperation.error,
+        userId: insertOperation.userId,
+      }).returning();
+      console.log(`DbStorage.createVideoOperation: Result:`, result?.[0] ? `id=${result[0].id}` : 'null/undefined');
+      return result[0];
+    } catch (error) {
+      console.error('Database error in createVideoOperation:', error);
+      throw error; // Re-throw so the caller knows it failed
+    }
   }
 
   async getVideoOperation(id: string): Promise<VideoOperation | undefined> {
