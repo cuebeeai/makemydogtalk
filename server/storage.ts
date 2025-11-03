@@ -126,21 +126,31 @@ export class MemStorage implements IStorage {
 
 export class DbStorage implements IStorage {
   async getUser(id: string): Promise<User | undefined> {
-    const result = await db.select().from(users).where(eq(users.id, id));
-    return result[0];
+    try {
+      const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
+      return result?.[0] || undefined;
+    } catch (error) {
+      console.error('Database error in getUser');
+      return undefined;
+    }
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    const result = await db.select().from(users).where(eq(users.email, email));
-    return result[0];
+    try {
+      const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
+      return result?.[0] || undefined;
+    } catch (error) {
+      console.error('Database error in getUserByEmail');
+      return undefined;
+    }
   }
 
   async getUserByGoogleId(googleId: string): Promise<User | undefined> {
     try {
       const result = await db.select().from(users).where(eq(users.googleId, googleId)).limit(1);
-      return result?.[0];
+      return result?.[0] || undefined;
     } catch (error) {
-      console.error('Error in getUserByGoogleId:', error);
+      console.error('Database error in getUserByGoogleId');
       return undefined;
     }
   }
