@@ -168,18 +168,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Deduct credit and skip rate limit
           if (req.user) {
             // Fetch current user from database to ensure latest credit balance
+            console.log(`Attempting to fetch user from database: ${req.user.id}`);
             const currentUser = await storage.getUser(req.user.id);
+            console.log(`Fetched user:`, currentUser ? `email=${currentUser.email}, credits=${currentUser.credits}` : 'null/undefined');
+            
             if (!currentUser || (currentUser.credits || 0) < 1) {
+              console.log(`Credit deduction failed: currentUser=${currentUser ? 'exists' : 'null'}, credits=${currentUser?.credits || 0}`);
               return res.status(400).json({
                 error: "Failed to deduct credit",
                 message: "You don't have enough credits"
               });
             }
             // Update database credits for authenticated users
+            console.log(`Attempting to update user credits from ${currentUser.credits} to ${currentUser.credits - 1}`);
             const updatedUser = await storage.updateUser(req.user.id, {
               credits: currentUser.credits - 1
             });
+            console.log(`Update result:`, updatedUser ? `credits=${updatedUser.credits}` : 'null/undefined');
+            
             if (!updatedUser) {
+              console.log(`Failed to update user in database`);
               return res.status(400).json({
                 error: "Failed to deduct credit",
                 message: "Could not update credit balance"
