@@ -50,11 +50,11 @@ router.get('/auth/google', (req: Request, res: Response) => {
 });
 
 /**
- * GET /auth/callback
+ * GET /auth/google/callback
  * OAuth callback handler - exchanges code for tokens
  * User is redirected here after Google login
  */
-router.get('/auth/callback', async (req: Request, res: Response) => {
+router.get('/auth/google/callback', async (req: Request, res: Response) => {
   try {
     const { code, error } = req.query;
 
