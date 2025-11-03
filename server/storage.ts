@@ -130,7 +130,7 @@ export class DbStorage implements IStorage {
       const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
       return result?.[0] || undefined;
     } catch (error) {
-      console.error('Database error in getUser');
+      console.error('Database error in getUser:', error);
       return undefined;
     }
   }
@@ -140,7 +140,7 @@ export class DbStorage implements IStorage {
       const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
       return result?.[0] || undefined;
     } catch (error) {
-      console.error('Database error in getUserByEmail');
+      console.error('Database error in getUserByEmail:', error);
       return undefined;
     }
   }
@@ -150,7 +150,7 @@ export class DbStorage implements IStorage {
       const result = await db.select().from(users).where(eq(users.googleId, googleId)).limit(1);
       return result?.[0] || undefined;
     } catch (error) {
-      console.error('Database error in getUserByGoogleId');
+      console.error('Database error in getUserByGoogleId:', error);
       return undefined;
     }
   }
