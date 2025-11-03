@@ -3,6 +3,7 @@ import * as path from "path";
 import { GoogleAuth } from "google-auth-library";
 import { addWatermark, isFFmpegAvailable } from "./watermark";
 import { uploadVideoToGCS } from "./cloudStorage";
+import { sanitizeError } from "./validation";
 
 // Check for required environment variables
 let serviceAccountCredentials: any;
@@ -13,7 +14,7 @@ if (process.env.SERVICE_ACCOUNT_JSON) {
     serviceAccountCredentials = JSON.parse(process.env.SERVICE_ACCOUNT_JSON);
     console.log("✅ Using SERVICE_ACCOUNT_JSON from environment");
   } catch (error) {
-    console.error("❌ Failed to parse SERVICE_ACCOUNT_JSON:", error);
+    console.error("❌ Failed to parse SERVICE_ACCOUNT_JSON");
   }
 } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
   // For local development with file path
@@ -134,7 +135,6 @@ export async function generateVideo(config: VideoGenerationConfig): Promise<Vide
       : 'image/jpeg';
 
     const enhancedPrompt = buildEnhancedPrompt(config);
-    console.log("Enhanced prompt:", enhancedPrompt);
 
     // Get OAuth 2.0 access token
     const accessToken = await getAccessToken();
@@ -145,7 +145,7 @@ export async function generateVideo(config: VideoGenerationConfig): Promise<Vide
     // Validate aspect ratio - Vertex AI Veo 3.1 only supports 16:9 and 9:16
     let finalAspectRatio = config.aspectRatio;
     if (finalAspectRatio === '1:1') {
-      console.warn('1:1 aspect ratio is not supported by Vertex AI. Converting to 16:9.');
+      console.warn('1:1 aspect ratio is not supported. Converting to 16:9.');
       finalAspectRatio = '16:9';
     }
 
@@ -165,7 +165,7 @@ export async function generateVideo(config: VideoGenerationConfig): Promise<Vide
       },
     };
 
-    console.log("Calling Vertex AI endpoint:", endpoint);
+    console.log("Initiating video generation request...");
 
     const response = await fetch(endpoint, {
       method: 'POST',
@@ -178,25 +178,28 @@ export async function generateVideo(config: VideoGenerationConfig): Promise<Vide
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("Vertex AI error response:", errorText);
       let errorData;
       try {
         errorData = JSON.parse(errorText);
       } catch {
         errorData = { message: errorText };
       }
-      throw new Error(errorData.error?.message || errorData.message || `API request failed: ${response.status} ${response.statusText}`);
+      const rawError = errorData.error?.message || errorData.message || `API request failed: ${response.status} ${response.statusText}`;
+      const sanitizedError = sanitizeError({ message: rawError });
+      console.error("Vertex AI error:", sanitizedError);
+      throw new Error(sanitizedError);
     }
 
     const operation = await response.json();
-    console.log("Vertex AI operation started:", operation);
+    console.log("Vertex AI operation started successfully");
 
     return {
       operation,
     };
   } catch (error: any) {
-    console.error("Error generating video:", error);
-    throw new Error(`Video generation failed: ${error.message || "Unknown error"}`);
+    const sanitizedMsg = sanitizeError(error);
+    console.error("Error generating video:", sanitizedMsg);
+    throw new Error(sanitizedMsg);
   }
 }
 
@@ -223,8 +226,7 @@ export async function checkVideoStatus(operationName: string): Promise<VideoStat
     // For Veo 3.1, we need to use the fetchPredictOperation endpoint
     const endpoint = `https://us-central1-aiplatform.googleapis.com/v1/projects/${VERTEX_AI_PROJECT_ID}/locations/us-central1/publishers/google/models/veo-3.1-generate-preview:fetchPredictOperation`;
 
-    console.log("Polling operation:", fullOperationName);
-    console.log("Using endpoint:", endpoint);
+    console.log("Polling video generation status...");
 
     const requestBody = {
       operationName: fullOperationName
@@ -241,14 +243,14 @@ export async function checkVideoStatus(operationName: string): Promise<VideoStat
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("Operation status check failed:", errorText);
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error?.message || `Status check failed: ${response.status}`);
+      const rawError = errorData.error?.message || `Status check failed: ${response.status}`;
+      const sanitizedError = sanitizeError({ message: rawError });
+      console.error("Operation status check failed:", sanitizedError);
+      throw new Error(sanitizedError);
     }
 
     const updatedOperation = await response.json();
-
-    console.log("Operation status:", JSON.stringify(updatedOperation, null, 2));
 
     if (!updatedOperation.done) {
       console.log("Video still processing...");
@@ -257,33 +259,26 @@ export async function checkVideoStatus(operationName: string): Promise<VideoStat
       };
     }
 
-    console.log("Operation completed. Checking for errors...");
     if (updatedOperation.error) {
       const errorMsg = typeof updatedOperation.error === 'string'
         ? updatedOperation.error
         : (updatedOperation.error.message ? String(updatedOperation.error.message) : "Video generation failed");
-      console.log("Error found:", errorMsg);
+      const sanitizedError = sanitizeError({ message: errorMsg });
+      console.error("Video generation failed:", sanitizedError);
       return {
         status: "failed",
-        error: errorMsg,
+        error: sanitizedError,
       };
     }
 
-    console.log("Checking for generated video. Full updatedOperation:", JSON.stringify(updatedOperation, null, 2));
-    console.log("updatedOperation.response exists?", !!updatedOperation.response);
-    console.log("updatedOperation.response:", updatedOperation.response);
-
     // Veo 3.1 returns video in response.videos array with bytesBase64Encoded
     const videos = updatedOperation.response?.videos;
-    console.log("videos exists?", !!videos);
-    console.log("videos:", videos);
-    console.log("videos length:", videos?.length);
 
     if (videos && videos.length > 0) {
       const videoData = videos[0];
 
       if (!videoData.bytesBase64Encoded) {
-        console.log("No base64 video data in response:", videoData);
+        console.error("No video data in response");
         return {
           status: "failed",
           error: "No video data in response",
@@ -302,13 +297,13 @@ export async function checkVideoStatus(operationName: string): Promise<VideoStat
       const videoFileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.mp4`;
       const videoPath = path.join(uploadsDir, videoFileName);
 
-      console.log("Saving base64 video data to file");
+      console.log("Processing generated video...");
 
       // Decode base64 video data and save
       const videoBuffer = Buffer.from(videoData.bytesBase64Encoded, 'base64');
       fs.writeFileSync(videoPath, videoBuffer);
 
-      console.log("Video saved to:", videoPath);
+      console.log("Video file created successfully");
 
       // Add watermark to the video
       let finalVideoPath = videoPath;
@@ -346,30 +341,21 @@ export async function checkVideoStatus(operationName: string): Promise<VideoStat
       // Upload to Google Cloud Storage for persistent storage
       try {
         const gcsFileName = `videos/${Date.now()}_${Math.random().toString(36).substring(7)}.mp4`;
-        console.log("📤 Uploading video to Google Cloud Storage...");
-        console.log("📦 GCS Bucket:", process.env.GCS_BUCKET_NAME || 'makemydogtalk-videos');
-        console.log("📁 File:", gcsFileName);
+        console.log("Uploading video to cloud storage...");
 
         finalVideoUrl = await uploadVideoToGCS(finalVideoPath, gcsFileName);
 
         // Clean up local temp file
         fs.unlinkSync(finalVideoPath);
-        console.log("✅ Local temp file cleaned up");
-        console.log("✅ Video available at:", finalVideoUrl);
+        console.log("Video uploaded successfully");
       } catch (uploadError: any) {
-        console.error("❌ Failed to upload to GCS:");
-        console.error("   Error message:", uploadError.message);
-        console.error("   Error stack:", uploadError.stack);
-        console.error("   GCS_BUCKET_NAME:", process.env.GCS_BUCKET_NAME);
-        console.error("   SERVICE_ACCOUNT_JSON present:", !!process.env.SERVICE_ACCOUNT_JSON);
-        console.error("   VERTEX_AI_PROJECT_ID:", process.env.VERTEX_AI_PROJECT_ID);
+        const sanitizedError = sanitizeError(uploadError);
+        console.error("Failed to upload video:", sanitizedError);
 
         // CRITICAL: On Vercel/serverless, local paths will NOT work
         // We must throw an error instead of silently failing with unusable URLs
-        throw new Error(`Video generated but failed to upload to cloud storage: ${uploadError.message}. Please check GCS configuration.`);
+        throw new Error(`Video generated but failed to upload to cloud storage. Please check configuration.`);
       }
-
-      console.log("Final video URL:", finalVideoUrl);
 
       return {
         status: "completed",
@@ -377,16 +363,17 @@ export async function checkVideoStatus(operationName: string): Promise<VideoStat
       };
     }
 
-    console.log("No videos found in response");
+    console.error("No video data in API response");
     return {
       status: "failed",
       error: "No video generated",
     };
   } catch (error: any) {
-    console.error("Error checking video status:", error);
+    const sanitizedMsg = sanitizeError(error);
+    console.error("Error checking video status:", sanitizedMsg);
     return {
       status: "failed",
-      error: error.message || "Failed to check video status",
+      error: sanitizedMsg,
     };
   }
 }

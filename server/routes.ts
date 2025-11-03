@@ -13,6 +13,7 @@ import { optionalAuth, requireAuth } from "./middleware";
 import authRoutes from "./authRoutes";
 import { logoutSession } from "./auth";
 import { logoutSession as logoutEmailSession } from "./emailAuth";
+import { validateImageFile, sanitizeError } from "./validation";
 
 // Use /tmp for Vercel serverless (read-only filesystem otherwise)
 const uploadDir = process.env.NODE_ENV === 'production' ? '/tmp/uploads' : 'uploads/temp/';
@@ -22,9 +23,9 @@ const uploadDir = process.env.NODE_ENV === 'production' ? '/tmp/uploads' : 'uplo
 if (!fs.existsSync(uploadDir)) {
   try {
     fs.mkdirSync(uploadDir, { recursive: true });
-    console.log(`✅ Created upload directory: ${uploadDir}`);
+    console.log(`✅ Created upload directory successfully`);
   } catch (error) {
-    console.error(`❌ Failed to create upload directory: ${uploadDir}`, error);
+    console.error(`❌ Failed to create upload directory`);
   }
 }
 
@@ -83,7 +84,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.clearCookie('auth_token');
       res.json({ success: true, message: 'Logged out successfully' });
     } catch (error: any) {
-      console.error('Logout error:', error);
+      console.error('Logout failed');
       res.status(500).json({ success: false, error: 'Logout failed' });
     }
   });
@@ -112,6 +113,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "No image file provided" });
       }
 
+      // Validate file
+      const fileValidation = validateImageFile(req.file);
+      if (!fileValidation.valid) {
+        fs.unlinkSync(req.file.path);
+        return res.status(400).json({ error: fileValidation.error });
+      }
+
       if (!req.body.prompt) {
         return res.status(400).json({ error: "No prompt provided" });
       }
@@ -135,10 +143,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const adminEmail = process.env.ADMIN_EMAIL;
       const isAdmin = !!(adminEmail && req.user && req.user.email === adminEmail);
 
-      console.log(`Video generation request from ${req.user ? `user ${req.user.email}` : `IP ${userId}`}${isAdmin ? ' (Admin)' : ''}`);
+      console.log(`Video generation request received${isAdmin ? ' from admin user' : ''}`);
 
       if (isAdmin) {
-        console.log(`Admin user ${req.user!.email} bypassing credit and rate limits.`);
+        console.log(`Admin bypass active for request`);
       } else {
         // Check if user has credits
         let hasCredits = false;
@@ -178,7 +186,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               });
             }
             req.user = updatedUser; // Update session user
-            console.log(`User ${req.user.email} used a credit. Remaining: ${updatedUser.credits}`);
+            console.log(`Authenticated user used a credit`);
           } else {
             // Use in-memory credit manager for anonymous users
             const deducted = creditManager.deductCredit(userId);
@@ -188,7 +196,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 message: "You don't have enough credits"
               });
             }
-            console.log(`Anonymous user ${userId} used a credit. Remaining: ${creditManager.getCredits(userId)}`);
+            console.log(`Anonymous user used a credit`);
           }
         } else {
           // Check rate limit for free generation
@@ -229,7 +237,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: `Invalid or missing aspectRatio. Received: ${aspectRatio}` });
       }
 
-      console.log(`Generating video with prompt: "${prompt}", intent: "${intent}", tone: "${tone}", voiceStyle: "${voiceStyle}", action: "${action}", background: "${background}", aspectRatio: "${aspectRatio}"`);
+      console.log(`Starting video generation`);
 
       const result = await generateVideo({
         prompt,
@@ -255,9 +263,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Record this generation for rate limiting (only if not using credits and not an admin)
       if (!useCredit && !isAdmin) {
         rateLimiter.recordGeneration(userId);
-        console.log(`Rate limit recorded for user: ${userId}`);
+        console.log(`Rate limit recorded for request`);
       } else {
-        console.log(`Credit used or admin bypass - rate limit not recorded for user: ${userId}`);
+        console.log(`Credit used or admin bypass - rate limit not recorded`);
       }
 
       fs.unlink(imagePath, (err) => {
@@ -269,8 +277,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: "processing",
       });
     } catch (error: any) {
-      console.error("Error in /api/generate-video:", error);
-      res.status(500).json({ error: error.message || "Failed to start video generation" });
+      const sanitizedMsg = sanitizeError(error);
+      console.error("Error in /api/generate-video:", sanitizedMsg);
+      res.status(500).json({ error: sanitizedMsg });
     }
   });
 
@@ -319,8 +328,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
     } catch (error: any) {
-      console.error("Error in /api/video-status:", error);
-      res.status(500).json({ error: error.message || "Failed to check video status" });
+      const sanitizedMsg = sanitizeError(error);
+      console.error("Error in /api/video-status:", sanitizedMsg);
+      res.status(500).json({ error: sanitizedMsg });
     }
   });
 
@@ -334,8 +344,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const videos = await storage.getVideosByUserId(req.user.id);
       res.json(videos);
     } catch (error: any) {
-      console.error("Error in /api/my-videos:", error);
-      res.status(500).json({ error: error.message || "Failed to fetch user videos" });
+      const sanitizedMsg = sanitizeError(error);
+      console.error("Error in /api/my-videos:", sanitizedMsg);
+      res.status(500).json({ error: sanitizedMsg });
     }
   });
 

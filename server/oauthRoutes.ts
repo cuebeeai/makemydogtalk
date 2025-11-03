@@ -9,9 +9,12 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import * as fs from 'fs';
-import { getAuthUrl, handleOAuthCallback, verifyUserSession, logoutUser, getActiveSessions } from './auth';
-import { generateTalkingDogVideo, checkVideoGenerationStatus, getVertexAIInfo } from './vertexAI';
+import * as path from 'path';
+import { getAuthUrl, handleOAuthCallback, logoutSession, getActiveSessions } from './auth';
+import { generateVideo, checkVideoStatus } from './veo';
 import { requireAuth, optionalAuth } from './middleware';
+import { videoGenerationRateLimiter } from './rateLimiter';
+import { validateImageFile, videoGenerationSchema } from './validation';
 
 const router = Router();
 
@@ -38,10 +41,10 @@ router.get('/auth/google', (req: Request, res: Response) => {
       message: 'Redirect user to this URL to start Google login',
     });
   } catch (error: any) {
-    console.error('Error generating auth URL:', error);
+    console.error('Error generating auth URL');
     res.status(500).json({
       success: false,
-      error: error.message,
+      error: 'Failed to generate auth URL',
     });
   }
 });
@@ -71,10 +74,10 @@ router.get('/auth/callback', async (req: Request, res: Response) => {
     }
 
     // Exchange code for tokens and create user session
-    const userSession = await handleOAuthCallback(code);
+    const result = await handleOAuthCallback(code);
 
     // In production, set httpOnly cookie for security
-    res.cookie('access_token', userSession.accessToken, {
+    res.cookie('access_token', result.token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
@@ -83,21 +86,15 @@ router.get('/auth/callback', async (req: Request, res: Response) => {
     // Return user info and token
     res.json({
       success: true,
-      user: {
-        id: userSession.id,
-        email: userSession.email,
-        name: userSession.name,
-        picture: userSession.picture,
-      },
-      accessToken: userSession.accessToken,
+      user: result.user,
+      accessToken: result.token,
       message: 'Successfully authenticated. Use accessToken in Authorization header for protected routes.',
     });
   } catch (error: any) {
-    console.error('OAuth callback error:', error);
+    console.error('OAuth callback error: Authentication failed');
     res.status(500).json({
       success: false,
       error: 'Authentication failed',
-      details: error.message,
     });
   }
 });
@@ -108,8 +105,11 @@ router.get('/auth/callback', async (req: Request, res: Response) => {
  */
 router.post('/auth/logout', requireAuth, (req: Request, res: Response) => {
   try {
-    if (req.user) {
-      logoutUser(req.user.id);
+    // Get token from Authorization header or cookie
+    const token = req.headers.authorization?.split(' ')[1] || req.cookies?.access_token;
+    
+    if (token) {
+      logoutSession(token);
     }
 
     res.clearCookie('access_token');
@@ -119,9 +119,10 @@ router.post('/auth/logout', requireAuth, (req: Request, res: Response) => {
       message: 'Successfully logged out',
     });
   } catch (error: any) {
+    console.error('Logout failed');
     res.status(500).json({
       success: false,
-      error: error.message,
+      error: 'Logout failed',
     });
   }
 });
@@ -150,6 +151,7 @@ router.get('/auth/me', requireAuth, (req: Request, res: Response) => {
 router.post(
   '/generate-video',
   requireAuth,
+  videoGenerationRateLimiter,
   upload.single('image'),
   async (req: Request, res: Response) => {
     try {
@@ -171,49 +173,56 @@ router.post(
         });
       }
 
-      // Validate prompt
-      const { prompt, intent, tone, background } = req.body;
-      if (!prompt) {
+      // Validate file
+      const fileValidation = validateImageFile(req.file);
+      if (!fileValidation.valid) {
+        // Clean up invalid file
+        fs.unlinkSync(req.file.path);
         return res.status(400).json({
           success: false,
-          error: 'Missing prompt',
-          message: 'Please provide what the dog should say',
+          error: fileValidation.error,
         });
       }
 
-      console.log(`[Video Generation] User: ${req.user.email}, Prompt: "${prompt}"`);
+      // Validate input data
+      const validation = videoGenerationSchema.safeParse(req.body);
+      if (!validation.success) {
+        // Clean up temp file
+        fs.unlinkSync(req.file.path);
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid input data',
+          details: validation.error.errors,
+        });
+      }
 
-      // Read image and convert to base64
-      const imageBytes = fs.readFileSync(req.file.path);
-      const imageBase64 = imageBytes.toString('base64');
+      const { prompt, intent, tone, voiceStyle, action, background, aspectRatio } = validation.data;
 
-      // Determine MIME type
-      const mimeType = req.file.path.toLowerCase().endsWith('.png')
-        ? 'image/png'
-        : 'image/jpeg';
+      console.log(`[Video Generation] Request received from authenticated user`);
 
       // Call Vertex AI using SERVICE ACCOUNT credentials
-      // (NOT the user's OAuth token)
-      const result = await generateTalkingDogVideo({
+      const result = await generateVideo({
         prompt,
-        imageBase64,
-        mimeType,
+        imagePath: req.file.path,
         intent,
         tone,
+        voiceStyle,
+        action,
         background,
-        userId: req.user.id,
+        aspectRatio,
       });
 
-      // Clean up temp file
+      // Clean up temp file (veo.ts reads it directly)
       fs.unlinkSync(req.file.path);
 
       res.json({
         success: true,
-        ...result,
+        operationId: result.operation.name,
+        status: 'processing',
         message: 'Video generation started. Use operationId to check status.',
       });
     } catch (error: any) {
-      console.error('[Video Generation] Error:', error);
+      console.error('[Video Generation] Video generation failed');
 
       // Clean up temp file on error
       if (req.file && fs.existsSync(req.file.path)) {
@@ -222,8 +231,7 @@ router.post(
 
       res.status(500).json({
         success: false,
-        error: 'Video generation failed',
-        details: error.message,
+        error: error.message || 'Video generation failed',
       });
     }
   }
@@ -245,15 +253,17 @@ router.get('/video-status/:operationId', requireAuth, async (req: Request, res: 
       });
     }
 
-    const result = await checkVideoGenerationStatus(operationId);
+    const result = await checkVideoStatus(operationId);
 
-    res.json(result);
+    res.json({
+      success: true,
+      ...result,
+    });
   } catch (error: any) {
-    console.error('[Video Status] Error:', error);
+    console.error('[Video Status] Failed to check video status');
     res.status(500).json({
       success: false,
-      error: 'Failed to check video status',
-      details: error.message,
+      error: error.message || 'Failed to check video status',
     });
   }
 });
@@ -267,8 +277,6 @@ router.get('/video-status/:operationId', requireAuth, async (req: Request, res: 
  * Server health check with authentication status
  */
 router.get('/health', optionalAuth, (req: Request, res: Response) => {
-  const vertexInfo = getVertexAIInfo();
-
   res.json({
     success: true,
     server: 'MakeMyDogTalk.com API',
@@ -282,10 +290,7 @@ router.get('/health', optionalAuth, (req: Request, res: Response) => {
       activeSessions: getActiveSessions(),
     },
     vertexAI: {
-      configured: !!process.env.SERVICE_ACCOUNT_JSON,
-      projectId: vertexInfo.projectId,
-      location: vertexInfo.location,
-      serviceAccount: vertexInfo.serviceAccountEmail,
+      configured: !!process.env.SERVICE_ACCOUNT_JSON && !!process.env.VERTEX_AI_PROJECT_ID,
     },
   });
 });
