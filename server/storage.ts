@@ -178,11 +178,18 @@ export class DbStorage implements IStorage {
   }
 
   async updateUser(id: string, updates: Partial<User>): Promise<User | undefined> {
-    const result = await db.update(users)
-      .set(updates)
-      .where(eq(users.id, id))
-      .returning();
-    return result[0];
+    try {
+      console.log(`DbStorage.updateUser: Updating user ${id} with:`, updates);
+      const result = await db.update(users)
+        .set(updates)
+        .where(eq(users.id, id))
+        .returning();
+      console.log(`DbStorage.updateUser: Result array length:`, result?.length, `First result:`, result?.[0]);
+      return result?.[0];
+    } catch (error) {
+      console.error('Database error in updateUser:', error);
+      return undefined;
+    }
   }
 
   async createVideoOperation(insertOperation: InsertVideoOperation): Promise<VideoOperation> {
