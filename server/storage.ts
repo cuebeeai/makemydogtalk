@@ -126,45 +126,18 @@ export class MemStorage implements IStorage {
 
 export class DbStorage implements IStorage {
   async getUser(id: string): Promise<User | undefined> {
-    try {
-      const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
-      // Handle both null and empty array responses from Neon
-      if (!result || !Array.isArray(result) || result.length === 0) {
-        return undefined;
-      }
-      return result[0];
-    } catch (error) {
-      console.error('Database error in getUser:', error);
-      return undefined;
-    }
+    const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
+    return result?.[0] || undefined;
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    try {
-      const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
-      // Handle both null and empty array responses from Neon
-      if (!result || !Array.isArray(result) || result.length === 0) {
-        return undefined;
-      }
-      return result[0];
-    } catch (error) {
-      console.error('Database error in getUserByEmail:', error);
-      return undefined;
-    }
+    const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
+    return result?.[0] || undefined;
   }
 
   async getUserByGoogleId(googleId: string): Promise<User | undefined> {
-    try {
-      const result = await db.select().from(users).where(eq(users.googleId, googleId)).limit(1);
-      // Handle both null and empty array responses from Neon
-      if (!result || !Array.isArray(result) || result.length === 0) {
-        return undefined;
-      }
-      return result[0];
-    } catch (error) {
-      console.error('Database error in getUserByGoogleId:', error);
-      return undefined;
-    }
+    const result = await db.select().from(users).where(eq(users.googleId, googleId)).limit(1);
+    return result?.[0] || undefined;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
@@ -190,56 +163,31 @@ export class DbStorage implements IStorage {
   }
 
   async updateUser(id: string, updates: Partial<User>): Promise<User | undefined> {
-    try {
-      console.log(`DbStorage.updateUser: Updating user ${id} with:`, updates);
-      const result = await db.update(users)
-        .set(updates)
-        .where(eq(users.id, id))
-        .returning();
-      console.log(`DbStorage.updateUser: Result array length:`, result?.length, `First result:`, result?.[0]);
-      
-      // Handle both null and empty array responses from Neon
-      if (!result || !Array.isArray(result) || result.length === 0) {
-        console.error(`DbStorage.updateUser: No result returned for user ${id}`);
-        return undefined;
-      }
-      return result[0];
-    } catch (error) {
-      console.error('Database error in updateUser:', error);
-      return undefined;
-    }
+    const result = await db.update(users)
+      .set(updates)
+      .where(eq(users.id, id))
+      .returning();
+    return result?.[0];
   }
 
   async createVideoOperation(insertOperation: InsertVideoOperation): Promise<VideoOperation> {
-    try {
-      const id = randomUUID();
-      console.log(`DbStorage.createVideoOperation: Creating operation with id=${id}, userId=${insertOperation.userId}`);
-      const result = await db.insert(videoOperations).values({
-        id,
-        operationId: insertOperation.operationId,
-        status: insertOperation.status,
-        prompt: insertOperation.prompt,
-        imagePath: insertOperation.imagePath,
-        videoUrl: insertOperation.videoUrl,
-        error: insertOperation.error,
-        userId: insertOperation.userId,
-      }).returning();
-      console.log(`DbStorage.createVideoOperation: Result:`, result?.[0] ? `id=${result[0].id}` : 'null/undefined');
-      
-      // Handle both null and empty array responses from Neon
-      if (!result || !Array.isArray(result) || result.length === 0) {
-        throw new Error('Failed to create video operation - database returned no result');
-      }
-      return result[0];
-    } catch (error) {
-      console.error('Database error in createVideoOperation:', error);
-      throw error; // Re-throw so the caller knows it failed
-    }
+    const id = randomUUID();
+    const result = await db.insert(videoOperations).values({
+      id,
+      operationId: insertOperation.operationId,
+      status: insertOperation.status,
+      prompt: insertOperation.prompt,
+      imagePath: insertOperation.imagePath,
+      videoUrl: insertOperation.videoUrl,
+      error: insertOperation.error,
+      userId: insertOperation.userId,
+    }).returning();
+    return result[0];
   }
 
   async getVideoOperation(id: string): Promise<VideoOperation | undefined> {
     const result = await db.select().from(videoOperations).where(eq(videoOperations.id, id));
-    return result[0];
+    return result?.[0];
   }
 
   async updateVideoOperation(id: string, updates: Partial<VideoOperation>): Promise<VideoOperation | undefined> {
@@ -247,7 +195,7 @@ export class DbStorage implements IStorage {
       .set(updates)
       .where(eq(videoOperations.id, id))
       .returning();
-    return result[0];
+    return result?.[0];
   }
 
   async getVideosByUserId(userId: string): Promise<VideoOperation[]> {
