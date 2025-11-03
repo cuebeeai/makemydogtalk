@@ -128,7 +128,11 @@ export class DbStorage implements IStorage {
   async getUser(id: string): Promise<User | undefined> {
     try {
       const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
-      return result?.[0] || undefined;
+      // Handle both null and empty array responses from Neon
+      if (!result || !Array.isArray(result) || result.length === 0) {
+        return undefined;
+      }
+      return result[0];
     } catch (error) {
       console.error('Database error in getUser:', error);
       return undefined;
@@ -138,7 +142,11 @@ export class DbStorage implements IStorage {
   async getUserByEmail(email: string): Promise<User | undefined> {
     try {
       const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
-      return result?.[0] || undefined;
+      // Handle both null and empty array responses from Neon
+      if (!result || !Array.isArray(result) || result.length === 0) {
+        return undefined;
+      }
+      return result[0];
     } catch (error) {
       console.error('Database error in getUserByEmail:', error);
       return undefined;
@@ -148,7 +156,11 @@ export class DbStorage implements IStorage {
   async getUserByGoogleId(googleId: string): Promise<User | undefined> {
     try {
       const result = await db.select().from(users).where(eq(users.googleId, googleId)).limit(1);
-      return result?.[0] || undefined;
+      // Handle both null and empty array responses from Neon
+      if (!result || !Array.isArray(result) || result.length === 0) {
+        return undefined;
+      }
+      return result[0];
     } catch (error) {
       console.error('Database error in getUserByGoogleId:', error);
       return undefined;
@@ -185,7 +197,13 @@ export class DbStorage implements IStorage {
         .where(eq(users.id, id))
         .returning();
       console.log(`DbStorage.updateUser: Result array length:`, result?.length, `First result:`, result?.[0]);
-      return result?.[0];
+      
+      // Handle both null and empty array responses from Neon
+      if (!result || !Array.isArray(result) || result.length === 0) {
+        console.error(`DbStorage.updateUser: No result returned for user ${id}`);
+        return undefined;
+      }
+      return result[0];
     } catch (error) {
       console.error('Database error in updateUser:', error);
       return undefined;
@@ -207,6 +225,11 @@ export class DbStorage implements IStorage {
         userId: insertOperation.userId,
       }).returning();
       console.log(`DbStorage.createVideoOperation: Result:`, result?.[0] ? `id=${result[0].id}` : 'null/undefined');
+      
+      // Handle both null and empty array responses from Neon
+      if (!result || !Array.isArray(result) || result.length === 0) {
+        throw new Error('Failed to create video operation - database returned no result');
+      }
       return result[0];
     } catch (error) {
       console.error('Database error in createVideoOperation:', error);
