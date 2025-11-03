@@ -277,8 +277,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: "processing",
       });
     } catch (error: any) {
+      console.error("Error in /api/generate-video (full error):", error);
       const sanitizedMsg = sanitizeError(error);
-      console.error("Error in /api/generate-video:", sanitizedMsg);
+      console.error("Error in /api/generate-video (sanitized):", sanitizedMsg);
       res.status(500).json({ error: sanitizedMsg });
     }
   });
