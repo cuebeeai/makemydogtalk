@@ -10,11 +10,32 @@ import { storage } from './storage';
 import { randomBytes } from 'crypto';
 import { type User } from '@shared/schema';
 
+/**
+ * Get the OAuth redirect URI based on the current environment
+ * - In development (Replit): Use the Replit dev URL
+ * - In production: Use the configured production URL
+ */
+function getRedirectUri(): string {
+  // Check if we're running on Replit (development environment)
+  const replitDomain = process.env.REPLIT_DOMAINS;
+  
+  if (replitDomain) {
+    // Use Replit development URL
+    return `https://${replitDomain}/auth/google/callback`;
+  }
+  
+  // Use production URL from environment variable
+  return process.env.OAUTH_REDIRECT_URI || 'http://localhost:5000/auth/google/callback';
+}
+
 // Initialize OAuth2 client with credentials from environment
+const redirectUri = getRedirectUri();
+console.log(`✅ OAuth redirect URI configured: ${redirectUri}`);
+
 const oauth2Client = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
-  process.env.OAUTH_REDIRECT_URI
+  redirectUri
 );
 
 // Session token storage
