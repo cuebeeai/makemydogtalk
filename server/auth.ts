@@ -121,7 +121,15 @@ export async function handleOAuthCallback(code: string): Promise<{ user: User; t
       }
     } else {
       // Update last login
-      await storage.updateUser(user.id, { lastLogin: new Date() });
+      const updatedUser = await storage.updateUser(user.id, { lastLogin: new Date() });
+      if (updatedUser) {
+        user = updatedUser;
+      }
+    }
+
+    // At this point, user should always be defined due to the logic above
+    if (!user) {
+      throw new Error('Failed to create or retrieve user');
     }
 
     // Create session token
@@ -192,11 +200,13 @@ export function getActiveSessions(): number {
  */
 function cleanupExpiredSessions(): void {
   const now = new Date();
-  for (const [token, session] of sessions.entries()) {
+  const expiredTokens: string[] = [];
+  sessions.forEach((session, token) => {
     if (session.expiresAt < now) {
-      sessions.delete(token);
+      expiredTokens.push(token);
     }
-  }
+  });
+  expiredTokens.forEach(token => sessions.delete(token));
 }
 
 // Run cleanup every hour
