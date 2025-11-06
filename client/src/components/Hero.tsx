@@ -422,21 +422,12 @@ export default function Hero() {
                     </p>
                   </div>
 
-                  <div className="flex justify-center items-center">
-                    <div className="relative">
-                      <PawPrint
-                        className="h-16 w-16 text-primary"
-                        style={{
-                          animation: 'walkingDog 1.5s ease-in-out infinite'
-                        }}
-                      />
-                      <style>{`
-                        @keyframes walkingDog {
-                          0%, 100% { transform: translateX(-10px) rotate(-5deg); }
-                          50% { transform: translateX(10px) rotate(5deg); }
-                        }
-                      `}</style>
-                    </div>
+                  <div className="flex justify-center items-center py-4">
+                    <img
+                      src="/assets/LoadingAnimation.gif"
+                      alt="Dog walking animation"
+                      className="h-48 w-48 md:h-56 md:w-56 object-contain"
+                    />
                   </div>
 
                   <div className="space-y-2">
