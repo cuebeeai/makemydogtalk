@@ -17,15 +17,30 @@ export default function Pricing() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50">
       <Header />
-      <main className="flex-1 pt-24 pb-8">
+      <main className="flex-1 pt-32 pb-16">
         <div className="max-w-5xl mx-auto px-6">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">
-              Simple Pricing
-            </h1>
-            <p className="text-base md:text-lg text-muted-foreground max-w-2xl mx-auto">
+          <div className="text-center mb-16">
+            <div className="inline-block relative mb-6">
+              <div
+                className="absolute inset-0 bg-white shadow-lg"
+                style={{
+                  margin: '-12px -20px',
+                  border: '4px solid #faa939',
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 6px rgba(0,0,0,0.2)'
+                }}
+              ></div>
+              <h1 className="text-4xl md:text-5xl font-handwriting-bold relative px-6 py-2" style={{
+                letterSpacing: '0.05em',
+                color: '#faa939',
+                textShadow: '-1px 1px 0px #b66a00, -2px 2px 0px #b66a00'
+              }}>
+                SIMPLE PRICING
+              </h1>
+            </div>
+            <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
               Create amazing talking dog videos at an affordable price
             </p>
           </div>
