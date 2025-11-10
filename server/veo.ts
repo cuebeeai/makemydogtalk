@@ -70,7 +70,61 @@ export interface VideoStatusResult {
   operation?: any;
 }
 
-function buildEnhancedPrompt(config: VideoGenerationConfig): string {
+/**
+ * Calculate optimal video duration based on dialogue length and tone
+ * @param prompt - The dialogue text
+ * @param tone - The speaking tone (affects pace)
+ * @param hasAction - Whether there's an action to perform (adds buffer time)
+ * @returns Duration in seconds (minimum 2, maximum 8)
+ */
+function calculateVideoDuration(prompt: string, tone?: string, hasAction?: boolean): number {
+  // Count words in the prompt
+  const wordCount = prompt.trim().split(/\s+/).length;
+
+  // Determine words per minute based on tone
+  const wpmByTone: Record<string, number> = {
+    excited: 170,      // Fast, energetic pace
+    funny: 160,        // Quick, comedic timing
+    professional: 145, // Clear, moderate pace
+    friendly: 140,     // Casual, comfortable pace
+    calm: 130,         // Slower, measured pace
+    sad: 120,          // Slow, emotional pace
+  };
+
+  // Default to average pace if tone not specified or not in map
+  const wordsPerMinute = tone ? (wpmByTone[tone] || 140) : 140;
+
+  // Calculate base duration for dialogue (in seconds)
+  const dialogueDuration = (wordCount / wordsPerMinute) * 60;
+
+  // Add buffer time:
+  // - 0.5 seconds at start for natural beginning
+  // - 0.5 seconds at end for natural ending
+  // - Additional 1-2 seconds if there's an action to perform
+  let bufferTime = 1.0; // Base buffer (start + end)
+
+  if (hasAction) {
+    // More buffer for action sequences
+    bufferTime += 1.5;
+  }
+
+  const totalDuration = dialogueDuration + bufferTime;
+
+  // Clamp between 2 and 8 seconds (Veo API constraints)
+  const finalDuration = Math.max(2, Math.min(8, Math.ceil(totalDuration)));
+
+  console.log(`📊 Video duration calculation:
+    - Word count: ${wordCount}
+    - Tone: ${tone || 'default'} (${wordsPerMinute} WPM)
+    - Dialogue duration: ${dialogueDuration.toFixed(1)}s
+    - Buffer time: ${bufferTime}s
+    - Has action: ${hasAction ? 'yes' : 'no'}
+    - Final duration: ${finalDuration}s`);
+
+  return finalDuration;
+}
+
+function buildEnhancedPrompt(config: VideoGenerationConfig, duration: number): string {
   let enhancedPrompt = "";
 
   // Determine voice characteristics
@@ -120,7 +174,8 @@ function buildEnhancedPrompt(config: VideoGenerationConfig): string {
   }
 
   // Add general quality directives with emphasis on preserving the input image's visual characteristics
-  enhancedPrompt += " Preserve the exact visual style, lighting, and quality of the input image. If the image is photorealistic, maintain photorealism. If it's a cartoon or illustration, maintain that style. Use natural lip-sync and realistic movements. The video should be 8 seconds long.";
+  // Note: We now use dynamic duration instead of hardcoded 8 seconds
+  enhancedPrompt += ` Preserve the exact visual style, lighting, and quality of the input image. If the image is photorealistic, maintain photorealism. If it's a cartoon or illustration, maintain that style. Use natural lip-sync and realistic movements for the dog. The video should be ${duration} seconds long.`;
 
   return enhancedPrompt;
 }
@@ -134,7 +189,11 @@ export async function generateVideo(config: VideoGenerationConfig): Promise<Vide
       ? 'image/png'
       : 'image/jpeg';
 
-    const enhancedPrompt = buildEnhancedPrompt(config);
+    // Calculate optimal video duration based on dialogue length, tone, and whether there's an action
+    const hasAction = !!(config.action && config.action.trim());
+    const duration = calculateVideoDuration(config.prompt, config.tone, hasAction);
+
+    const enhancedPrompt = buildEnhancedPrompt(config, duration);
 
     // Get OAuth 2.0 access token
     const accessToken = await getAccessToken();
@@ -159,7 +218,7 @@ export async function generateVideo(config: VideoGenerationConfig): Promise<Vide
       }],
       parameters: {
         aspectRatio: finalAspectRatio,
-        durationSeconds: 8,
+        durationSeconds: duration,
         generateAudio: true,
         sampleCount: 1,
       },
@@ -197,8 +256,11 @@ export async function generateVideo(config: VideoGenerationConfig): Promise<Vide
       operation,
     };
   } catch (error: any) {
+    console.error("RAW Error generating video:", error);
+    console.error("Error message:", error.message);
+    console.error("Error stack:", error.stack);
     const sanitizedMsg = sanitizeError(error);
-    console.error("Error generating video:", sanitizedMsg);
+    console.error("SANITIZED Error generating video:", sanitizedMsg);
     throw new Error(sanitizedMsg);
   }
 }

@@ -53,7 +53,8 @@ export async function uploadVideoToGCS(
         contentType: 'video/mp4',
         cacheControl: 'public, max-age=31536000', // Cache for 1 year
       },
-      public: true, // Make the file publicly accessible
+      // Don't set public: true because uniform bucket-level access is enabled
+      // Instead, the bucket should have allUsers permission set at the bucket level
     });
 
     // Get the public URL

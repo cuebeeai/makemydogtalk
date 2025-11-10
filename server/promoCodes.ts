@@ -19,10 +19,12 @@ interface Redemption {
 class PromoCodeManager {
   private promoCodes: Map<string, PromoCode>;
   private redemptions: Map<string, Set<string>>; // code -> Set of userIds who redeemed
+  private usersWithPromoCode: Set<string>; // Track all users who have ever redeemed ANY promo code
 
   constructor() {
     this.promoCodes = new Map();
     this.redemptions = new Map();
+    this.usersWithPromoCode = new Set();
 
     // Initialize default promo codes
     this.initializeDefaultCodes();
@@ -111,7 +113,15 @@ class PromoCodeManager {
       };
     }
 
-    // Check if user already redeemed this code
+    // NEW: Check if user has already redeemed ANY promo code
+    if (this.usersWithPromoCode.has(userId)) {
+      return {
+        success: false,
+        error: 'You have already used a promo code. Only one promo code is allowed per account.',
+      };
+    }
+
+    // Check if user already redeemed this specific code (redundant now, but keeping for safety)
     const redemptionSet = this.redemptions.get(upperCode)!;
     if (redemptionSet.has(userId)) {
       return {
@@ -130,6 +140,7 @@ class PromoCodeManager {
 
     // Redeem the code
     redemptionSet.add(userId);
+    this.usersWithPromoCode.add(userId); // NEW: Track that this user has used a promo code
 
     console.log(`🎉 Promo code redeemed: ${upperCode} by ${userId} (+${promoCode.credits} credits)`);
 
@@ -147,6 +158,13 @@ class PromoCodeManager {
     const upperCode = code.toUpperCase();
     const redemptionSet = this.redemptions.get(upperCode);
     return redemptionSet ? redemptionSet.has(userId) : false;
+  }
+
+  /**
+   * Check if a user has redeemed ANY promo code
+   */
+  hasRedeemedAnyCode(userId: string): boolean {
+    return this.usersWithPromoCode.has(userId);
   }
 
   /**

@@ -78,12 +78,10 @@ app.use((req, res, next) => {
       serveStatic(app);
     }
 
-    // ALWAYS serve the app on the port specified in the environment variable PORT
-    // Other ports are firewalled. Default to 5000 for Replit.
-    // this serves both the API and the client.
-    // It is the only port that is not firewalled.
+    // Serve the app on the port specified in the environment variable PORT
+    // Default to 5000 for local development
     const port = parseInt(process.env.PORT || '5000', 10);
-    // Always use 0.0.0.0 for proper external access in Replit
+    // Use 0.0.0.0 for external access
     const host = '0.0.0.0';
     
     console.log(`Attempting to start server on ${host}:${port}...`);

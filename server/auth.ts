@@ -12,19 +12,10 @@ import { type User } from '@shared/schema';
 
 /**
  * Get the OAuth redirect URI based on the current environment
- * - In development (Replit): Use the Replit dev URL
- * - In production: Use the configured production URL
+ * Uses the configured OAUTH_REDIRECT_URI from environment variables
+ * Defaults to localhost for local development
  */
 function getRedirectUri(): string {
-  // Check if we're running on Replit (development environment)
-  const replitDomain = process.env.REPLIT_DOMAINS;
-  
-  if (replitDomain) {
-    // Use Replit development URL
-    return `https://${replitDomain}/auth/google/callback`;
-  }
-  
-  // Use production URL from environment variable
   return process.env.OAUTH_REDIRECT_URI || 'http://localhost:5000/auth/google/callback';
 }
 
