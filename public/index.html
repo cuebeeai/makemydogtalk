@@ -3,9 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Make My Dog Talk - Coming Soon</title>
-    <meta name="description" content="Make My Dog Talk - AI-powered video generation for your pets. Coming soon!">
+    <title>Make My Dog Talk - Join Our Waitlist</title>
+    <meta name="description" content="Make My Dog Talk - AI-powered video generation for your pets. Join our waitlist!">
     <style>
+        @font-face {
+            font-family: 'Annie Use Your Telescope';
+            src: url('/fonts/AnnieUseYourTelescope-Regular.ttf') format('truetype');
+            font-weight: 400;
+            font-style: normal;
+            font-display: swap;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -13,13 +21,13 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: hsl(30, 40%, 98%);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: white;
+            color: hsl(25, 20%, 20%);
             padding: 20px;
         }
 
@@ -41,10 +49,13 @@
         }
 
         h1 {
-            font-size: 3rem;
+            font-family: 'Annie Use Your Telescope', cursive;
+            font-size: 3.5rem;
             margin-bottom: 1rem;
-            font-weight: 700;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+            font-weight: 600;
+            color: hsl(35, 95%, 60%);
+            -webkit-text-stroke: 0.5px hsl(35, 95%, 60%);
+            text-stroke: 0.5px hsl(35, 95%, 60%);
         }
 
         .logo {
@@ -52,72 +63,53 @@
             height: auto;
             margin-bottom: 2rem;
             display: inline-block;
-            animation: bounce 2s infinite;
-            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
-        }
-
-        @keyframes bounce {
-            0%, 100% {
-                transform: translateY(0);
-            }
-            50% {
-                transform: translateY(-20px);
-            }
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
         }
 
         p {
-            font-size: 1.25rem;
+            font-size: 1.125rem;
             margin-bottom: 2rem;
-            opacity: 0.9;
+            color: hsl(25, 15%, 45%);
             line-height: 1.6;
-        }
-
-        .status {
-            background: rgba(255, 255, 255, 0.2);
-            backdrop-filter: blur(10px);
-            border-radius: 12px;
-            padding: 1.5rem;
-            margin-top: 2rem;
-        }
-
-        .status h2 {
-            font-size: 1.5rem;
-            margin-bottom: 1rem;
-        }
-
-        .status-text {
-            font-size: 1rem;
-            opacity: 0.9;
-        }
-
-        .loader {
-            margin: 2rem auto;
-            width: 50px;
-            height: 50px;
-            border: 5px solid rgba(255, 255, 255, 0.3);
-            border-top-color: white;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
         }
 
         .contact {
             margin-top: 2rem;
             font-size: 0.9rem;
-            opacity: 0.8;
+            color: hsl(25, 15%, 45%);
         }
 
         a {
-            color: white;
+            color: hsl(35, 95%, 60%);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        a:hover {
             text-decoration: underline;
         }
 
         .waitlist-form {
-            margin: 2rem auto;
-            max-width: 400px;
+            margin: 3rem auto 2rem;
+            max-width: 450px;
+            background: white;
+            padding: 2.5rem;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
+
+        .waitlist-form h2 {
+            font-family: 'Annie Use Your Telescope', cursive;
+            font-size: 2.5rem;
+            color: hsl(35, 95%, 60%);
+            margin-bottom: 0.5rem;
+            -webkit-text-stroke: 0.5px hsl(35, 95%, 60%);
+        }
+
+        .waitlist-form p {
+            font-size: 1rem;
+            color: hsl(25, 15%, 45%);
+            margin-bottom: 1.5rem;
         }
 
         .form-group {
@@ -128,42 +120,43 @@
 
         input[type="email"] {
             flex: 1;
-            padding: 0.75rem 1rem;
-            border: 2px solid rgba(255, 255, 255, 0.3);
+            padding: 0.875rem 1rem;
+            border: 2px solid hsl(30, 30%, 80%);
             border-radius: 8px;
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            color: white;
+            background: hsl(30, 40%, 98%);
+            color: hsl(25, 20%, 20%);
             font-size: 1rem;
-            transition: all 0.3s ease;
+            font-family: inherit;
+            transition: all 0.2s ease;
         }
 
         input[type="email"]::placeholder {
-            color: rgba(255, 255, 255, 0.6);
+            color: hsl(25, 15%, 60%);
         }
 
         input[type="email"]:focus {
             outline: none;
-            border-color: rgba(255, 255, 255, 0.6);
-            background: rgba(255, 255, 255, 0.15);
+            border-color: hsl(35, 95%, 60%);
+            box-shadow: 0 0 0 3px hsla(35, 95%, 60%, 0.1);
         }
 
         button {
-            padding: 0.75rem 1.5rem;
+            padding: 0.875rem 1.75rem;
             border: none;
             border-radius: 8px;
-            background: white;
-            color: #667eea;
+            background: linear-gradient(135deg, hsl(35, 95%, 60%) 0%, hsl(30, 85%, 55%) 100%);
+            color: hsl(30, 100%, 98%);
             font-size: 1rem;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
             white-space: nowrap;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
 
         button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         }
 
         button:active {
@@ -171,26 +164,29 @@
         }
 
         button:disabled {
-            opacity: 0.5;
+            opacity: 0.6;
             cursor: not-allowed;
             transform: none;
         }
 
         .message {
-            padding: 0.75rem;
+            padding: 0.875rem 1rem;
             border-radius: 8px;
             margin-top: 1rem;
             font-size: 0.9rem;
+            font-weight: 500;
         }
 
         .success {
-            background: rgba(72, 187, 120, 0.2);
-            border: 1px solid rgba(72, 187, 120, 0.4);
+            background: hsl(150, 70%, 95%);
+            color: hsl(150, 70%, 35%);
+            border: 1px solid hsl(150, 70%, 80%);
         }
 
         .error {
-            background: rgba(245, 101, 101, 0.2);
-            border: 1px solid rgba(245, 101, 101, 0.4);
+            background: hsl(0, 75%, 95%);
+            color: hsl(0, 75%, 40%);
+            border: 1px solid hsl(0, 75%, 80%);
         }
 
         @media (max-width: 768px) {
@@ -212,17 +208,11 @@
     <div class="container">
         <img src="logo.png" alt="Make My Dog Talk Logo" class="logo">
         <h1>Make My Dog Talk</h1>
-        <p>We're working on something amazing! AI-powered video generation to make your pets come to life.</p>
-
-        <div class="status">
-            <h2>Currently Under Development</h2>
-            <div class="loader"></div>
-            <p class="status-text">Our team is hard at work building the best experience for you and your furry friends.</p>
-        </div>
+        <p>AI-powered video generation to make your pets come to life. Be the first to know when we launch!</p>
 
         <div class="waitlist-form">
-            <h2 style="margin-bottom: 1rem;">Join Our Waitlist</h2>
-            <p style="margin-bottom: 1rem; opacity: 0.9;">Be the first to know when we launch!</p>
+            <h2>Join Our Waitlist</h2>
+            <p>Get early access to our AI-powered dog videos</p>
             <form id="waitlistForm">
                 <div class="form-group">
                     <input
@@ -231,7 +221,7 @@
                         placeholder="Enter your email"
                         required
                     >
-                    <button type="submit" id="submitBtn">Join</button>
+                    <button type="submit" id="submitBtn">Join Waitlist</button>
                 </div>
                 <div id="message" class="message" style="display: none;"></div>
             </form>
