@@ -1,15 +1,10 @@
 {
   "buildCommand": "esbuild server/vercel.ts --platform=node --packages=external --bundle --format=esm --outfile=api/index.js --external:./vite.js --external:./vite",
   "outputDirectory": "public",
-  "functions": {
-    "api/index.js": {
-      "runtime": "nodejs20.x"
-    }
-  },
-  "rewrites": [
+  "routes": [
     {
-      "source": "/api/(.*)",
-      "destination": "/api"
+      "src": "/api/(.*)",
+      "dest": "/api/index.js"
     }
   ]
 }
