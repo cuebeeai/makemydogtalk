@@ -359,6 +359,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Waitlist email collection endpoint
+  app.post("/api/waitlist", async (req, res) => {
+    try {
+      const { email } = req.body;
+
+      if (!email || typeof email !== 'string') {
+        return res.status(400).json({ error: "Email is required" });
+      }
+
+      // Basic email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ error: "Invalid email address" });
+      }
+
+      await storage.addWaitlistEmail(email);
+
+      res.json({ success: true, message: "Thank you for joining our waitlist!" });
+    } catch (error: any) {
+      // Handle duplicate email
+      if (error.message?.includes('duplicate') || error.code === '23505') {
+        return res.status(200).json({ success: true, message: "You're already on our waitlist!" });
+      }
+
+      const sanitizedMsg = sanitizeError(error);
+      console.error("Error in /api/waitlist:", sanitizedMsg);
+      res.status(500).json({ error: "Failed to join waitlist. Please try again." });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

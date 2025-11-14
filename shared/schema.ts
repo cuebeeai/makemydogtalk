@@ -70,3 +70,18 @@ export const insertVideoOperationSchema = createInsertSchema(videoOperations).om
 
 export type InsertVideoOperation = z.infer<typeof insertVideoOperationSchema>;
 export type VideoOperation = typeof videoOperations.$inferSelect;
+
+export const waitlistEmails = pgTable("waitlist_emails", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  email: text("email").notNull().unique(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertWaitlistEmailSchema = createInsertSchema(waitlistEmails, {
+  email: z.string().email("Invalid email address"),
+}).pick({
+  email: true,
+});
+
+export type InsertWaitlistEmail = z.infer<typeof insertWaitlistEmailSchema>;
+export type WaitlistEmail = typeof waitlistEmails.$inferSelect;

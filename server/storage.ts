@@ -1,7 +1,7 @@
-import { type User, type InsertUser, type InsertOAuthUser, type VideoOperation, type InsertVideoOperation } from "@shared/schema";
+import { type User, type InsertUser, type InsertOAuthUser, type VideoOperation, type InsertVideoOperation, type WaitlistEmail } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
-import { users, videoOperations } from "@shared/schema";
+import { users, videoOperations, waitlistEmails } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
 export interface IStorage {
@@ -15,15 +15,18 @@ export interface IStorage {
   getVideoOperation(id: string): Promise<VideoOperation | undefined>;
   updateVideoOperation(id: string, updates: Partial<VideoOperation>): Promise<VideoOperation | undefined>;
   getVideosByUserId(userId: string): Promise<VideoOperation[]>;
+  addWaitlistEmail(email: string): Promise<WaitlistEmail>;
 }
 
 export class MemStorage implements IStorage {
   private users: Map<string, User>;
   private videoOperations: Map<string, VideoOperation>;
+  private waitlistEmails: Map<string, WaitlistEmail>;
 
   constructor() {
     this.users = new Map();
     this.videoOperations = new Map();
+    this.waitlistEmails = new Map();
   }
 
   async getUser(id: string): Promise<User | undefined> {
@@ -122,6 +125,20 @@ export class MemStorage implements IStorage {
       (op) => op.userId === userId
     );
   }
+
+  async addWaitlistEmail(email: string): Promise<WaitlistEmail> {
+    if (this.waitlistEmails.has(email)) {
+      throw new Error('Email already exists in waitlist');
+    }
+    const id = randomUUID();
+    const waitlistEmail: WaitlistEmail = {
+      id,
+      email,
+      createdAt: new Date(),
+    };
+    this.waitlistEmails.set(email, waitlistEmail);
+    return waitlistEmail;
+  }
 }
 
 export class DbStorage implements IStorage {
@@ -200,6 +217,13 @@ export class DbStorage implements IStorage {
 
   async getVideosByUserId(userId: string): Promise<VideoOperation[]> {
     return await db.select().from(videoOperations).where(eq(videoOperations.userId, userId));
+  }
+
+  async addWaitlistEmail(email: string): Promise<WaitlistEmail> {
+    const result = await db.insert(waitlistEmails).values({
+      email,
+    }).returning();
+    return result[0];
   }
 }
 

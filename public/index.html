@@ -115,6 +115,84 @@
             text-decoration: underline;
         }
 
+        .waitlist-form {
+            margin: 2rem auto;
+            max-width: 400px;
+        }
+
+        .form-group {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        input[type="email"] {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            color: white;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        input[type="email"]::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        input[type="email"]:focus {
+            outline: none;
+            border-color: rgba(255, 255, 255, 0.6);
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        button {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            background: white;
+            color: #667eea;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .message {
+            padding: 0.75rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+        }
+
+        .success {
+            background: rgba(72, 187, 120, 0.2);
+            border: 1px solid rgba(72, 187, 120, 0.4);
+        }
+
+        .error {
+            background: rgba(245, 101, 101, 0.2);
+            border: 1px solid rgba(245, 101, 101, 0.4);
+        }
+
         @media (max-width: 768px) {
             h1 {
                 font-size: 2rem;
@@ -142,9 +220,73 @@
             <p class="status-text">Our team is hard at work building the best experience for you and your furry friends.</p>
         </div>
 
+        <div class="waitlist-form">
+            <h2 style="margin-bottom: 1rem;">Join Our Waitlist</h2>
+            <p style="margin-bottom: 1rem; opacity: 0.9;">Be the first to know when we launch!</p>
+            <form id="waitlistForm">
+                <div class="form-group">
+                    <input
+                        type="email"
+                        id="emailInput"
+                        placeholder="Enter your email"
+                        required
+                    >
+                    <button type="submit" id="submitBtn">Join</button>
+                </div>
+                <div id="message" class="message" style="display: none;"></div>
+            </form>
+        </div>
+
         <div class="contact">
             <p>Have questions? Contact us at <a href="mailto:support@makemydogtalk.com">support@makemydogtalk.com</a></p>
         </div>
     </div>
+
+    <script>
+        document.getElementById('waitlistForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const emailInput = document.getElementById('emailInput');
+            const submitBtn = document.getElementById('submitBtn');
+            const messageDiv = document.getElementById('message');
+
+            const email = emailInput.value.trim();
+
+            // Disable form during submission
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Joining...';
+            messageDiv.style.display = 'none';
+
+            try {
+                const response = await fetch('/api/waitlist', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email }),
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    messageDiv.textContent = data.message;
+                    messageDiv.className = 'message success';
+                    messageDiv.style.display = 'block';
+                    emailInput.value = '';
+                } else {
+                    messageDiv.textContent = data.error || 'Something went wrong. Please try again.';
+                    messageDiv.className = 'message error';
+                    messageDiv.style.display = 'block';
+                }
+            } catch (error) {
+                messageDiv.textContent = 'Network error. Please check your connection and try again.';
+                messageDiv.className = 'message error';
+                messageDiv.style.display = 'block';
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Join';
+            }
+        });
+    </script>
 </body>
 </html>
