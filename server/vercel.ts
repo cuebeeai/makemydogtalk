@@ -89,7 +89,8 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
 console.log('Setting up static file serving for Vercel...');
 
 // Inline static file serving (instead of importing from vite.js)
-const distPath = path.resolve(__dirname, "public");
+// In Vercel, __dirname will be /api after bundling, so go up one level
+const distPath = path.resolve(__dirname, "..", "public");
 
 if (!fs.existsSync(distPath)) {
   console.warn(`Static files directory not found: ${distPath}`);
