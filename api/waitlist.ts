@@ -1,5 +1,4 @@
-import { db } from "../server/db";
-import { waitlistEmails } from "../shared/schema";
+import { neon } from "@neondatabase/serverless";
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
@@ -19,8 +18,18 @@ export default async function handler(req: any, res: any) {
       return res.status(400).json({ error: "Invalid email address" });
     }
 
-    // Insert into database
-    await db.insert(waitlistEmails).values({ email });
+    // Direct database connection
+    if (!process.env.DATABASE_URL) {
+      throw new Error("DATABASE_URL not configured");
+    }
+
+    const sql = neon(process.env.DATABASE_URL);
+
+    // Insert into database using raw SQL
+    await sql`
+      INSERT INTO waitlist_emails (email)
+      VALUES (${email})
+    `;
 
     res.json({ success: true, message: "Thank you for joining our waitlist!" });
   } catch (error: any) {
