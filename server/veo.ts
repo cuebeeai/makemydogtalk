@@ -125,59 +125,27 @@ function calculateVideoDuration(prompt: string, tone?: string, hasAction?: boole
 }
 
 function buildEnhancedPrompt(config: VideoGenerationConfig, duration: number): string {
-  let enhancedPrompt = "";
+  // Build minimal prompt - just voice, dialogue, and action WITHOUT quotes or "dog speaking" prefix
+  // to avoid triggering subtitle generation. User form fields stay the same.
+  const parts: string[] = [];
 
-  // Determine voice characteristics
-  let voiceDescription = "";
-
+  // Add voice style if provided (optional) - goes first for natural flow
   if (config.voiceStyle && config.voiceStyle.trim()) {
-    // Custom voice style provided by user
-    voiceDescription = `with ${config.voiceStyle.trim()}`;
-  } else {
-    // Fall back to preset tone
-    const toneMap: Record<string, string> = {
-      friendly: "in a cheerful and playful tone",
-      calm: "in a calm and sincere tone",
-      excited: "in an excited and energetic tone",
-      sad: "in a sad and emotional tone",
-      funny: "in a funny and sarcastic tone",
-      professional: "in a professional and clear tone",
-    };
-    voiceDescription = config.tone ? toneMap[config.tone] || "in a friendly tone" : "in a friendly tone";
+    parts.push(config.voiceStyle.trim());
   }
 
-  // Build the main prompt with emphasis on maintaining image style
-  enhancedPrompt = `A talking dog video that exactly matches the visual style of the input image. The dog should appear to be speaking ${voiceDescription}, saying: "${config.prompt}"`;
+  // Add the dialogue (required) - NO QUOTES to prevent subtitle generation
+  parts.push(config.prompt);
 
-  // Add action if provided
+  // Add action if provided (optional)
   if (config.action && config.action.trim()) {
-    enhancedPrompt += `. The dog ${config.action.trim()}`;
+    parts.push(config.action.trim());
   }
 
-  // Add background/scene if provided
-  if (config.background && config.background.trim()) {
-    enhancedPrompt += `. The scene is set in ${config.background}`;
-  }
+  // Join with commas - simple and natural
+  const prompt = parts.join(', ');
 
-  // Add intent-specific context
-  const intentContext: Record<string, string> = {
-    adoption: ". The video has a warm, hopeful feeling suitable for adoption or rescue.",
-    apology: ". The video conveys sincerity and heartfelt emotion.",
-    celebration: ". The video is joyful and celebratory.",
-    funny: ". The video is humorous and entertaining.",
-    business: ". The video is professional and clear for promotional purposes.",
-    memorial: ". The video is respectful and touching, suitable for a tribute.",
-  };
-
-  if (config.intent && intentContext[config.intent]) {
-    enhancedPrompt += intentContext[config.intent];
-  }
-
-  // Add general quality directives with emphasis on preserving the input image's visual characteristics
-  // Note: We now use dynamic duration instead of hardcoded 8 seconds
-  enhancedPrompt += ` Preserve the exact visual style, lighting, and quality of the input image. If the image is photorealistic, maintain photorealism. If it's a cartoon or illustration, maintain that style. Use natural lip-sync and realistic movements for the dog. The video should be ${duration} seconds long.`;
-
-  return enhancedPrompt;
+  return prompt;
 }
 
 export async function generateVideo(config: VideoGenerationConfig): Promise<VideoGenerationResult> {
@@ -195,19 +163,24 @@ export async function generateVideo(config: VideoGenerationConfig): Promise<Vide
 
     const enhancedPrompt = buildEnhancedPrompt(config, duration);
 
+    console.log('🎬 Generated prompt:', enhancedPrompt);
+
     // Get OAuth 2.0 access token
     const accessToken = await getAccessToken();
 
     // Vertex AI endpoint for Veo 3.1 video generation
     const endpoint = `https://us-central1-aiplatform.googleapis.com/v1/projects/${VERTEX_AI_PROJECT_ID}/locations/us-central1/publishers/google/models/veo-3.1-generate-preview:predictLongRunning`;
 
-    // Validate aspect ratio - Vertex AI Veo 3.1 only supports 16:9 and 9:16
-    let finalAspectRatio = config.aspectRatio;
-    if (finalAspectRatio === '1:1') {
-      console.warn('1:1 aspect ratio is not supported. Converting to 16:9.');
-      finalAspectRatio = '16:9';
+    // Determine aspect ratio - use the provided one, ensuring 9:16 is used for portrait images
+    let finalAspectRatio: "16:9" | "9:16" = "16:9";
+    if (config.aspectRatio === "9:16" || config.aspectRatio === "1:1") {
+      // For portrait or square images, use 9:16
+      finalAspectRatio = "9:16";
     }
 
+    console.log('📐 Using aspect ratio:', finalAspectRatio, '(detected from image:', config.aspectRatio, ')');
+
+    // Build request body with minimal parameters to let Veo handle image preservation naturally
     const requestBody = {
       instances: [{
         prompt: enhancedPrompt,
@@ -221,6 +194,9 @@ export async function generateVideo(config: VideoGenerationConfig): Promise<Vide
         durationSeconds: duration,
         generateAudio: true,
         sampleCount: 1,
+        // Try to disable subtitles/captions
+        enableSubtitles: false,
+        addSubtitles: false,
       },
     };
 

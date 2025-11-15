@@ -132,8 +132,9 @@ export default function Header() {
             open={promoCodeOpen}
             onOpenChange={setPromoCodeOpen}
             onSuccess={(creditsAdded) => {
-              // Credits will be refreshed by the auth context
               console.log(`Promo code applied: ${creditsAdded} credits added`);
+              // Trigger credit refresh in all components
+              window.dispatchEvent(new CustomEvent('creditsUpdated'));
             }}
           />
 

@@ -84,6 +84,17 @@ export default function Hero() {
   // Fetch credits on mount and after checkout
   useEffect(() => {
     fetchCredits();
+
+    // Listen for credit updates from promo codes or purchases
+    const handleCreditsUpdate = () => {
+      fetchCredits();
+    };
+
+    window.addEventListener('creditsUpdated', handleCreditsUpdate);
+
+    return () => {
+      window.removeEventListener('creditsUpdated', handleCreditsUpdate);
+    };
   }, []);
 
   // Handle opening checkout dialog
@@ -124,6 +135,18 @@ export default function Hero() {
     return () => clearInterval(interval);
   }, []);
 
+  // Handle ESC key to close generated video
+  useEffect(() => {
+    const handleEscKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && generatedVideoUrl) {
+        setGeneratedVideoUrl(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleEscKey);
+    return () => window.removeEventListener('keydown', handleEscKey);
+  }, [generatedVideoUrl]);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -141,18 +164,23 @@ export default function Hero() {
       const img = new Image();
       img.onload = () => {
         const ratio = img.width / img.height;
+        console.log(`📸 Image dimensions: ${img.width}x${img.height}, ratio: ${ratio.toFixed(2)}`);
 
-        // Map to closest standard video aspect ratio
-        // Note: Vertex AI Veo 3.1 only supports 16:9 and 9:16, not 1:1
-        if (ratio > 1.5) {
-          resolve("16:9"); // Wide/landscape
-        } else if (ratio < 0.75) {
-          resolve("9:16"); // Tall/portrait
+        // Determine aspect ratio based on actual image dimensions
+        // Veo 3.1 only supports 16:9 and 9:16
+        let detectedRatio: "16:9" | "9:16";
+
+        if (ratio >= 1.0) {
+          // Image is landscape or square - use 16:9
+          detectedRatio = "16:9";
+          console.log(`📐 Detected landscape/square image → using 16:9 format`);
         } else {
-          // Square/close to square - map to whichever is closer
-          // Default to 16:9 for images that are exactly square or slightly wider
-          resolve(ratio >= 1 ? "16:9" : "9:16");
+          // Image is portrait - use 9:16
+          detectedRatio = "9:16";
+          console.log(`📐 Detected portrait image → using 9:16 format`);
         }
+
+        resolve(detectedRatio);
       };
       img.src = URL.createObjectURL(file);
     });
@@ -328,13 +356,13 @@ export default function Hero() {
 
             <Card className="p-6 space-y-5 border-2 shadow-lg w-full relative">
               {generatedVideoUrl ? (
-                credits > 3 ? (
-                  // User has plenty of credits - no paywall, just encourage more creation
+                credits > 0 ? (
+                  // User has credits - allow immediate video generation
                   <div className="text-center space-y-4" data-testid="success-section">
                     <div className="space-y-2">
                       <h3 className="text-xl font-bold text-foreground">Video Ready! 🎉</h3>
                       <p className="text-sm text-muted-foreground">
-                        You have {credits} credits remaining. Keep creating!
+                        You have {credits} {credits === 1 ? 'credit' : 'credits'} remaining. Keep creating!
                       </p>
                     </div>
 
@@ -357,17 +385,12 @@ export default function Hero() {
                     </Button>
                   </div>
                 ) : (
-                  // User has 3 or fewer credits (or none) - show paywall
+                  // User has no credits - show paywall
                   <div className="text-center space-y-4" data-testid="paywall-section">
                     <div className="space-y-2">
-                      <h3 className="text-xl font-bold text-foreground">
-                        {credits > 0 ? `Running Low on Credits! ⚠️` : `Love Your Video? 🎥`}
-                      </h3>
+                      <h3 className="text-xl font-bold text-foreground">Love Your Video? 🎥</h3>
                       <p className="text-sm text-muted-foreground">
-                        {credits > 0
-                          ? `You have ${credits} ${credits === 1 ? 'credit' : 'credits'} left. Stock up now!`
-                          : `Want to create more talking dog videos? Choose a plan below:`
-                        }
+                        Want to create more talking dog videos? Choose a plan below:
                       </p>
                     </div>
 
@@ -390,26 +413,6 @@ export default function Hero() {
                       >
                         ${PRODUCTS.THREE_PACK.price} - {PRODUCTS.THREE_PACK.name} ({PRODUCTS.THREE_PACK.credits} Credits) ⭐
                       </Button>
-
-                      {credits > 0 && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="w-full text-sm"
-                          onClick={() => {
-                            setGeneratedVideoUrl(null);
-                            setSelectedFile(null);
-                            setPreviewUrl(null);
-                            setPrompt("");
-                            setVoiceStyle("");
-                            setAction("");
-                            setError(null);
-                          }}
-                          data-testid="button-create-another-with-credits"
-                        >
-                          Or use your {credits} remaining {credits === 1 ? 'credit' : 'credits'}
-                        </Button>
-                      )}
                     </div>
                   </div>
                 )
@@ -654,36 +657,49 @@ export default function Hero() {
               <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-accent/20 rounded-3xl blur-3xl"></div>
               <div className="relative w-80 h-80 md:w-[450px] md:h-[450px] rounded-3xl bg-gradient-to-br from-primary/10 to-accent/10 flex items-center justify-center overflow-hidden border-4 border-primary/20 shadow-2xl">
                 {generatedVideoUrl ? (
-                  <video
-                    key={generatedVideoUrl}
-                    src={generatedVideoUrl}
-                    controls
-                    preload="metadata"
-                    playsInline
-                    muted={false}
-                    crossOrigin="anonymous"
-                    className="w-full h-full object-contain"
-                    data-testid="video-generated"
-                    onError={(e) => {
-                      console.error("Video load error:", e);
-                      console.error("Video src:", generatedVideoUrl);
-                      console.error("Video error details:", e.currentTarget.error);
-                      setError("Failed to load video. Try downloading it instead.");
-                    }}
-                    onLoadedMetadata={(e) => {
-                      console.log("Video loaded successfully:", generatedVideoUrl);
-                      console.log("Video duration:", e.currentTarget.duration);
-                    }}
-                    onLoadStart={(e) => {
-                      console.log("Video loading started:", generatedVideoUrl);
-                    }}
-                    onCanPlay={(e) => {
-                      console.log("Video can play:", generatedVideoUrl);
-                    }}
-                    onLoadedData={(e) => {
-                      console.log("Video data loaded:", generatedVideoUrl);
-                    }}
-                  />
+                  <div className="relative w-full h-full group">
+                    <video
+                      key={generatedVideoUrl}
+                      src={generatedVideoUrl}
+                      controls
+                      preload="metadata"
+                      playsInline
+                      muted={false}
+                      crossOrigin="anonymous"
+                      className="w-full h-full object-contain"
+                      data-testid="video-generated"
+                      onError={(e) => {
+                        console.error("Video load error:", e);
+                        console.error("Video src:", generatedVideoUrl);
+                        console.error("Video error details:", e.currentTarget.error);
+                        setError("Failed to load video. Try downloading it instead.");
+                      }}
+                      onLoadedMetadata={(e) => {
+                        console.log("Video loaded successfully:", generatedVideoUrl);
+                        console.log("Video duration:", e.currentTarget.duration);
+                      }}
+                      onLoadStart={(e) => {
+                        console.log("Video loading started:", generatedVideoUrl);
+                      }}
+                      onCanPlay={(e) => {
+                        console.log("Video can play:", generatedVideoUrl);
+                      }}
+                      onLoadedData={(e) => {
+                        console.log("Video data loaded:", generatedVideoUrl);
+                      }}
+                    />
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setGeneratedVideoUrl(null);
+                      }}
+                      className="absolute top-4 right-4 z-50 w-10 h-10 rounded-full bg-black/50 hover:bg-black/70 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
+                      aria-label="Close video"
+                      data-testid="button-close-video"
+                    >
+                      <X className="h-6 w-6 text-white" />
+                    </button>
+                  </div>
                 ) : isGenerating ? (
                   <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-primary/5 to-accent/5 p-8">
                     <img

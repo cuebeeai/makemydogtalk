@@ -5,10 +5,11 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import CheckoutDialog from '@/components/CheckoutDialog';
 import { PRODUCTS } from '@/lib/products';
-import { Coins, ShoppingCart, User as UserIcon, PawPrint, Play, ArrowLeft, LogOut } from 'lucide-react';
+import { Coins, ShoppingCart, User as UserIcon, PawPrint, Play, ArrowLeft, LogOut, X } from 'lucide-react';
 import { Link } from 'wouter';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 
 const Dashboard: React.FC = () => {
   const { user, logout } = useAuth();
@@ -18,6 +19,7 @@ const Dashboard: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<{ priceId: string; name: string } | null>(null);
+  const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
 
   const isAdmin = user?.email === import.meta.env.VITE_ADMIN_EMAIL;
 
@@ -54,6 +56,18 @@ const Dashboard: React.FC = () => {
       fetchData();
     }
   }, [user, toast]);
+
+  // Handle ESC key to close video modal
+  useEffect(() => {
+    const handleEscKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && selectedVideo) {
+        setSelectedVideo(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleEscKey);
+    return () => window.removeEventListener('keydown', handleEscKey);
+  }, [selectedVideo]);
 
   const handleOpenCheckout = (product: { priceId: string; name: string }) => {
     setSelectedProduct(product);
@@ -143,17 +157,21 @@ const Dashboard: React.FC = () => {
             {videos.length > 0 ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                 {videos.map((video) => (
-                  <div key={video.id} className="relative group aspect-square">
+                  <div
+                    key={video.id}
+                    className="relative group aspect-square cursor-pointer"
+                    onClick={() => setSelectedVideo(video.videoUrl!)}
+                  >
                     <video
                       src={video.videoUrl!}
                       className="rounded-lg w-full h-full object-cover bg-muted"
                       preload="metadata"
                     />
-                    <a href={video.videoUrl!} target="_blank" rel="noopener noreferrer" className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
                       <div className="h-14 w-14 bg-white/90 rounded-full flex items-center justify-center">
                         <Play className="h-8 w-8 text-primary fill-primary ml-1" />
                       </div>
-                    </a>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -175,6 +193,31 @@ const Dashboard: React.FC = () => {
           productName={selectedProduct.name}
         />
       )}
+
+      {/* Video Modal */}
+      <Dialog open={!!selectedVideo} onOpenChange={(open) => !open && setSelectedVideo(null)}>
+        <DialogContent className="max-w-3xl p-0 overflow-hidden">
+          <DialogTitle className="sr-only">Video Player</DialogTitle>
+          <button
+            onClick={() => setSelectedVideo(null)}
+            className="absolute top-4 right-4 z-50 w-8 h-8 rounded-full bg-black/50 hover:bg-black/70 flex items-center justify-center transition-colors"
+            aria-label="Close video"
+          >
+            <X className="h-5 w-5 text-white" />
+          </button>
+          {selectedVideo && (
+            <video
+              key={selectedVideo}
+              src={selectedVideo}
+              controls
+              autoPlay
+              playsInline
+              className="w-full"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
       <Footer />
     </div>
   );
