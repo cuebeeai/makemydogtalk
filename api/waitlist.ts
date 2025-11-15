@@ -1,4 +1,5 @@
-import { storage } from "../server/storage";
+import { db } from "../server/db";
+import { waitlistEmails } from "../shared/schema";
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
@@ -18,7 +19,8 @@ export default async function handler(req: any, res: any) {
       return res.status(400).json({ error: "Invalid email address" });
     }
 
-    await storage.addWaitlistEmail(email);
+    // Insert into database
+    await db.insert(waitlistEmails).values({ email });
 
     res.json({ success: true, message: "Thank you for joining our waitlist!" });
   } catch (error: any) {
