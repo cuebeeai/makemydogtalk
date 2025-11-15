@@ -1,9 +1,9 @@
 {
   "buildCommand": "esbuild server/vercel.ts --platform=node --packages=external --bundle --format=esm --outfile=api/index.js --external:./vite.js --external:./vite",
-  "routes": [
+  "rewrites": [
     {
-      "src": "/(.*)",
-      "dest": "/api/index.js"
+      "source": "/(.*)",
+      "destination": "/api"
     }
   ]
 }
