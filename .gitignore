@@ -12,5 +12,4 @@ vite.config.ts.*
 attached_assets/
 .vercel
 uploads/
-api/
 .local/
