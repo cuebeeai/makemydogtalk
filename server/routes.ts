@@ -8,6 +8,7 @@ import { storage } from "./storage";
 import { generateVideo, checkVideoStatus } from "./veo";
 import { rateLimiter } from "./rateLimiter";
 import { registerStripeRoutes } from "./stripe";
+import { registerAdminRoutes } from "./adminRoutes";
 import { creditManager } from "./credits";
 import { optionalAuth, requireAuth } from "./middleware";
 import authRoutes from "./authRoutes";
@@ -92,6 +93,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register Stripe payment routes
   registerStripeRoutes(app);
 
+  // Register Admin routes (protected by requireAuth middleware inside)
+  registerAdminRoutes(app);
+
   // Serve static files with proper headers for video files
   app.use("/uploads", (req, res, next) => {
     // Set CORS headers
@@ -172,20 +176,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const currentUser = await storage.getUser(req.user.id);
             console.log(`Fetched user:`, currentUser ? `email=${currentUser.email}, credits=${currentUser.credits}` : 'null/undefined');
             
-            if (!currentUser || (currentUser.credits || 0) < 1) {
-              console.log(`Credit deduction failed: currentUser=${currentUser ? 'exists' : 'null'}, credits=${currentUser?.credits || 0}`);
+            // Check if user has enough credits (admin + purchased)
+            const totalCredits = (currentUser?.credits || 0) + (currentUser?.adminCredits || 0);
+            if (!currentUser || totalCredits < 1) {
+              console.log(`Credit deduction failed: currentUser=${currentUser ? 'exists' : 'null'}, total credits=${totalCredits}`);
               return res.status(400).json({
                 error: "Failed to deduct credit",
                 message: "You don't have enough credits"
               });
             }
+
+            // Priority: deduct from admin credits first, then purchased credits
+            let newAdminCredits = currentUser.adminCredits || 0;
+            let newPurchasedCredits = currentUser.credits || 0;
+
+            if (newAdminCredits > 0) {
+              newAdminCredits -= 1;
+              console.log(`Deducting 1 admin credit (${currentUser.adminCredits} → ${newAdminCredits})`);
+            } else {
+              newPurchasedCredits -= 1;
+              console.log(`Deducting 1 purchased credit (${currentUser.credits} → ${newPurchasedCredits})`);
+            }
+
             // Update database credits for authenticated users
-            console.log(`Attempting to update user credits from ${currentUser.credits} to ${currentUser.credits - 1}`);
             const updatedUser = await storage.updateUser(req.user.id, {
-              credits: currentUser.credits - 1
+              credits: newPurchasedCredits,
+              adminCredits: newAdminCredits
             });
-            console.log(`Update result:`, updatedUser ? `credits=${updatedUser.credits}` : 'null/undefined');
-            
+            console.log(`Update result:`, updatedUser ? `total=${(updatedUser.credits || 0) + (updatedUser.adminCredits || 0)}` : 'null/undefined');
+
             if (!updatedUser) {
               console.log(`Failed to update user in database`);
               return res.status(400).json({

@@ -1,8 +1,8 @@
-import { type User, type InsertUser, type InsertOAuthUser, type VideoOperation, type InsertVideoOperation, type WaitlistEmail } from "@shared/schema";
+import { type User, type InsertUser, type InsertOAuthUser, type VideoOperation, type InsertVideoOperation, type WaitlistEmail, type Transaction, type InsertTransaction } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
-import { users, videoOperations, waitlistEmails } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { users, videoOperations, waitlistEmails, transactions } from "@shared/schema";
+import { eq, desc, sql } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -16,17 +16,22 @@ export interface IStorage {
   updateVideoOperation(id: string, updates: Partial<VideoOperation>): Promise<VideoOperation | undefined>;
   getVideosByUserId(userId: string): Promise<VideoOperation[]>;
   addWaitlistEmail(email: string): Promise<WaitlistEmail>;
+  createTransaction(transaction: InsertTransaction): Promise<Transaction>;
+  getAllTransactions(): Promise<Transaction[]>;
+  getTransactionsByUserId(userId: string): Promise<Transaction[]>;
 }
 
 export class MemStorage implements IStorage {
   private users: Map<string, User>;
   private videoOperations: Map<string, VideoOperation>;
   private waitlistEmails: Map<string, WaitlistEmail>;
+  private transactions: Map<string, Transaction>;
 
   constructor() {
     this.users = new Map();
     this.videoOperations = new Map();
     this.waitlistEmails = new Map();
+    this.transactions = new Map();
   }
 
   async getUser(id: string): Promise<User | undefined> {
@@ -139,6 +144,29 @@ export class MemStorage implements IStorage {
     this.waitlistEmails.set(email, waitlistEmail);
     return waitlistEmail;
   }
+
+  async createTransaction(insertTransaction: InsertTransaction): Promise<Transaction> {
+    const id = randomUUID();
+    const transaction: Transaction = {
+      id,
+      ...insertTransaction,
+      createdAt: new Date(),
+    };
+    this.transactions.set(id, transaction);
+    return transaction;
+  }
+
+  async getAllTransactions(): Promise<Transaction[]> {
+    return Array.from(this.transactions.values()).sort(
+      (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+    );
+  }
+
+  async getTransactionsByUserId(userId: string): Promise<Transaction[]> {
+    return Array.from(this.transactions.values())
+      .filter((t) => t.userId === userId)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
 }
 
 export class DbStorage implements IStorage {
@@ -224,6 +252,21 @@ export class DbStorage implements IStorage {
       email,
     }).returning();
     return result[0];
+  }
+
+  async createTransaction(insertTransaction: InsertTransaction): Promise<Transaction> {
+    const result = await db.insert(transactions).values(insertTransaction).returning();
+    return result[0];
+  }
+
+  async getAllTransactions(): Promise<Transaction[]> {
+    return await db.select().from(transactions).orderBy(desc(transactions.createdAt));
+  }
+
+  async getTransactionsByUserId(userId: string): Promise<Transaction[]> {
+    return await db.select().from(transactions)
+      .where(eq(transactions.userId, userId))
+      .orderBy(desc(transactions.createdAt));
   }
 }
 

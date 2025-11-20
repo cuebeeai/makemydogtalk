@@ -23,8 +23,8 @@ const examples: Example[] = [
   {
     id: 1,
     category: "Content Creation",
-    beforeImage: "/examples/beforeimage1.png",
-    afterVideo: "/examples/afterimage1.mp4",
+    beforeImage: "/thumbnails/video19.jpg",
+    afterVideo: "/videos/video19.mp4",
     dialogue: "Yeah, I drive stick. I handle corners, chase squirrels, and now I talk. Honestly, I'm basically the full package. What's your dog up to?",
     voiceStyle: "Confident Male Jock Voice",
     action: "Talking while driving assertively",
@@ -42,7 +42,7 @@ const examples: Example[] = [
     id: 3,
     category: "Content Creation",
     beforeImage: "/examples/beforeimage2.png",
-    afterVideo: "/examples/afterimage2.mp4",
+    afterVideo: "/videos/video12.mp4",
     dialogue: "I've chewed more jerseys than the Browns have playoff wins. Still… loyal to the Dawg Pound.",
     voiceStyle: "Disappointed Old Male Voice",
     action: "Looks up disappointed, tilts head to the side, then looks away in disgust",
@@ -50,11 +50,11 @@ const examples: Example[] = [
   {
     id: 4,
     category: "Content Creation",
-    beforeImage: "/examples/upclose.jpg",
-    afterVideo: "/examples/upclosedog.mp4",
-    dialogue: "Hey! How was your day?! You eat lunch without me?! Who’d you see?! Why do you smell like… Target?!",
-    voiceStyle: "Happy, curious, gasping between questions",
-    action: "Sniffing dramatically",
+    beforeImage: "/thumbnails/video3.jpg",
+    afterVideo: "/videos/video3.mp4",
+    dialogue: "People said dogs couldn’t be CEOs. Cute. I just made every dog in America an influencer.",
+    voiceStyle: "Confident Female Speaker",
+    action: "Giving a Ted Talk on stage",
   },
 ];
 

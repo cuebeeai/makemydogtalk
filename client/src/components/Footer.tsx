@@ -1,5 +1,6 @@
 import { Link } from "wouter";
-import { Mail, Instagram, Facebook, Twitter } from "lucide-react";
+import { Mail } from "lucide-react";
+import { FaTiktok, FaYoutube } from "react-icons/fa";
 
 export default function Footer() {
   return (
@@ -17,7 +18,7 @@ export default function Footer() {
             <h4 className="text-sm font-semibold text-foreground">Quick Links</h4>
             <nav className="flex flex-col gap-2">
               <Link href="/how-to" className="text-sm text-muted-foreground hover:text-primary transition-colors" data-testid="link-footer-howto">
-                How to
+                Tips & Tricks
               </Link>
               <Link href="/examples" className="text-sm text-muted-foreground hover:text-primary transition-colors" data-testid="link-footer-examples">
                 Examples
@@ -44,12 +45,12 @@ export default function Footer() {
             <h4 className="text-sm font-semibold text-foreground">Contact</h4>
             <div className="flex flex-col gap-2">
               <a
-                href="mailto:hello@makemydogtalk.com"
+                href="mailto:makemydogtalk@gmail.com"
                 className="text-sm text-muted-foreground hover:text-primary transition-colors flex items-center gap-2"
                 data-testid="link-footer-email"
               >
                 <Mail className="h-4 w-4" />
-                hello@makemydogtalk.com
+                makemydogtalk@gmail.com
               </a>
             </div>
           </div>
@@ -57,32 +58,23 @@ export default function Footer() {
           <div className="space-y-4">
             <h4 className="text-sm font-semibold text-foreground">Follow Us</h4>
             <div className="flex gap-4">
-              <a 
-                href="https://instagram.com" 
-                target="_blank" 
-                rel="noopener noreferrer" 
+              <a
+                href="https://www.tiktok.com/@makemydogtalk?is_from_webapp=1&sender_device=pc"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="text-muted-foreground hover:text-primary transition-colors"
-                data-testid="link-footer-instagram"
+                data-testid="link-footer-tiktok"
               >
-                <Instagram className="h-5 w-5" />
+                <FaTiktok className="h-5 w-5" />
               </a>
-              <a 
-                href="https://facebook.com" 
-                target="_blank" 
-                rel="noopener noreferrer" 
+              <a
+                href="https://www.youtube.com/@makemydogtalk"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="text-muted-foreground hover:text-primary transition-colors"
-                data-testid="link-footer-facebook"
+                data-testid="link-footer-youtube"
               >
-                <Facebook className="h-5 w-5" />
-              </a>
-              <a 
-                href="https://twitter.com" 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="text-muted-foreground hover:text-primary transition-colors"
-                data-testid="link-footer-twitter"
-              >
-                <Twitter className="h-5 w-5" />
+                <FaYoutube className="h-5 w-5" />
               </a>
             </div>
           </div>

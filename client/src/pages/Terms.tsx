@@ -77,37 +77,77 @@ export default function Terms() {
             </section>
 
             <section className="space-y-3">
-              <h2 className="text-2xl font-semibold text-foreground">6. Intellectual Property</h2>
+              <h2 className="text-2xl font-semibold text-foreground">6. Generated Video License & Usage Rights</h2>
+              <p className="text-foreground font-semibold">
+                Ownership & License:
+              </p>
+              <p className="text-foreground">
+                You retain all rights to the videos generated using our service ("Generated Videos").
+                You may use Generated Videos for both personal and commercial purposes, including but not limited to:
+              </p>
+              <ul className="list-disc pl-6 space-y-2 text-foreground">
+                <li>Social media content (Instagram, TikTok, YouTube, Facebook, etc.)</li>
+                <li>Business advertisements and marketing materials</li>
+                <li>Entertainment and creative projects</li>
+                <li>Personal sharing with friends and family</li>
+              </ul>
+              <p className="text-foreground font-semibold mt-4">
+                Prohibited Uses:
+              </p>
+              <ul className="list-disc pl-6 space-y-2 text-foreground">
+                <li>Using Generated Videos to defame, harass, or harm any individual or entity</li>
+                <li>Creating content that impersonates real individuals without consent</li>
+                <li>Using videos for illegal purposes or to violate any laws</li>
+                <li>Distributing content that infringes on third-party rights</li>
+                <li>Misrepresenting Generated Videos as non-AI content where disclosure is required by law</li>
+              </ul>
+              <p className="text-foreground font-semibold mt-4">
+                User Responsibility & Disclaimers:
+              </p>
+              <ul className="list-disc pl-6 space-y-2 text-foreground">
+                <li>You are solely responsible for how you use Generated Videos</li>
+                <li>You must comply with all applicable laws, including advertising disclosure requirements</li>
+                <li>We are not responsible for any consequences arising from your use of Generated Videos</li>
+                <li>Generated Videos are clearly AI-created content and should be presented as such when required</li>
+                <li>You indemnify and hold us harmless from any claims arising from your use of Generated Videos</li>
+              </ul>
+              <p className="text-foreground mt-4">
+                <strong>Attribution:</strong> While not required, we appreciate (but do not mandate) credit to MakeMyDogTalk.com when sharing Generated Videos publicly.
+              </p>
+            </section>
+
+            <section className="space-y-3">
+              <h2 className="text-2xl font-semibold text-foreground">7. Intellectual Property</h2>
               <p className="text-foreground">
                 All software, branding, designs, and other assets of MakeMyDogTalk.com are our property and may not be copied, modified, or resold.
               </p>
             </section>
 
             <section className="space-y-3">
-              <h2 className="text-2xl font-semibold text-foreground">7. Limitation of Liability</h2>
+              <h2 className="text-2xl font-semibold text-foreground">8. Limitation of Liability</h2>
               <p className="text-foreground">
                 To the maximum extent permitted by law, we are not liable for any indirect, incidental, or consequential damages arising from your use of the site or generated content.
               </p>
             </section>
 
             <section className="space-y-3">
-              <h2 className="text-2xl font-semibold text-foreground">8. Termination</h2>
+              <h2 className="text-2xl font-semibold text-foreground">9. Termination</h2>
               <p className="text-foreground">
                 We may suspend or terminate access at our discretion if you violate these Terms.
               </p>
             </section>
 
             <section className="space-y-3">
-              <h2 className="text-2xl font-semibold text-foreground">9. Changes to Terms</h2>
+              <h2 className="text-2xl font-semibold text-foreground">10. Changes to Terms</h2>
               <p className="text-foreground">
                 We may update these Terms from time to time. The latest version will always be available on this page.
               </p>
             </section>
 
             <section className="space-y-3">
-              <h2 className="text-2xl font-semibold text-foreground">10. Contact</h2>
+              <h2 className="text-2xl font-semibold text-foreground">11. Contact</h2>
               <p className="text-foreground">
-                Questions? Contact us at <a href="mailto:support@makemydogtalk.com" className="text-primary hover:underline">support@makemydogtalk.com</a>
+                Questions? Contact us at <a href="mailto:makemydogtalk@gmail.com" className="text-primary hover:underline">makemydogtalk@gmail.com</a>
               </p>
             </section>
           </div>

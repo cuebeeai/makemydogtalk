@@ -32,6 +32,23 @@ export const videoGenerationSchema = z.object({
     .refine(
       (val) => val.trim().length > 0,
       'Prompt cannot be empty or only whitespace'
+    )
+    .refine(
+      (val) => {
+        // If using multi-dog format, validate the structure
+        const isMultiDog = /Dog\s+\d+:/i.test(val);
+        if (isMultiDog) {
+          // Check that each dog has dialogue after the "Dog X:" label
+          const dogSections = val.split(/Dog\s+\d+:/i);
+          // First element is empty or text before first dog
+          const dogDialogues = dogSections.slice(1);
+
+          // Ensure all dogs have non-empty dialogue
+          return dogDialogues.every(dialogue => dialogue.trim().length > 0);
+        }
+        return true;
+      },
+      'Each dog must have dialogue. Format: "Dog 1: [dialogue] Dog 2: [dialogue]"'
     ),
   intent: z.enum(['adoption', 'apology', 'celebration', 'funny', 'business', 'memorial', '']).optional(),
   tone: z.enum(['friendly', 'calm', 'excited', 'sad', 'funny', 'professional', '']).optional(),
@@ -86,7 +103,18 @@ export function validateImageFile(file: Express.Multer.File): { valid: boolean; 
  */
 export function sanitizeError(error: any): string {
   const errorMessage = error?.message || 'An unexpected error occurred';
-  
+
+  // IMPORTANT: Check for content moderation errors FIRST before sanitizing
+  // These should be shown to users so they can fix their prompts
+  if (errorMessage.includes('sensitive words') ||
+      errorMessage.includes('Responsible AI practices') ||
+      errorMessage.includes('violate') ||
+      errorMessage.includes('content policy')) {
+    // Return the full error message for content moderation issues
+    // Users need this feedback to understand why their prompt was rejected
+    return errorMessage;
+  }
+
   // Remove sensitive patterns from error messages
   const sensitivePatterns = [
     /projects\/[^\/]+/g,                    // GCP project IDs

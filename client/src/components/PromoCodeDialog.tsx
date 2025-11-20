@@ -101,7 +101,7 @@ export default function PromoCodeDialog({ open, onOpenChange, onSuccess }: Promo
             Enter Promo Code
           </DialogTitle>
           <DialogDescription className="text-center">
-            Have a promo code? Enter it below to get 5 free video credits!
+            Have a promo code? Enter it below to get 3 free video credits!
           </DialogDescription>
         </DialogHeader>
 

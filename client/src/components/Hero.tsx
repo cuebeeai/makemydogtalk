@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Upload, Play, Download, PawPrint, X, Coins } from "lucide-react";
+import { Upload, Play, Download, PawPrint, X, Coins, AlertTriangle, Share2, Maximize2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import CheckoutDialog from "./CheckoutDialog";
 import ExamplesModal from "./ExamplesModal";
+import VideoCollage from "./VideoCollage";
 import { PRODUCTS } from "@/lib/products";
 
 // Use public assets
@@ -16,36 +17,40 @@ const carGoldenImg = "/assets/CarGolden.png";
 const drivingDogImg = "/assets/DrivingDog.png";
 const greatDaneImg = "/assets/greatdane.jpg";
 const germanShepImg = "/assets/GermanShep.png";
-const logoImage = "/assets/logo.png";
 
 const useCases = [
-  "Birthday Greetings",
-  "Apology Videos",
+  "Content Creation",
+  "Business Advertising",
   "Adoption or Rescues",
-  "Business Promotions",
-  "Funny Content",
+  "Personal Messages",
+  "Social Media",
 ];
 
 const sampleVideos = [
   {
-    videoUrl: "/uploads/videos/1761227873195_ane3jf.mp4",
-    thumbnailUrl: carGoldenImg,
-    title: "Golden Retriever",
+    videoUrl: "/videos/video17.mp4",
+    thumbnailUrl: "/thumbnails/video17.jpg",
+    title: "Happy Pup",
   },
   {
-    videoUrl: "/uploads/videos/1761225934341_7kmdfy.mp4",
-    thumbnailUrl: drivingDogImg,
-    title: "Driving Dog",
+    videoUrl: "/videos/video15.mp4",
+    thumbnailUrl: "/thumbnails/video15.jpg",
+    title: "Excited Dog",
   },
   {
-    videoUrl: "/uploads/videos/1761644895854_xbnrvo.mp4",
-    thumbnailUrl: greatDaneImg,
-    title: "Great Dane",
+    videoUrl: "/videos/video20.mp4",
+    thumbnailUrl: "/thumbnails/video20.jpg",
+    title: "Talking Dog",
   },
   {
-    videoUrl: "/uploads/videos/1761414205882_be4lqv.mp4",
-    thumbnailUrl: germanShepImg,
-    title: "German Shepherd",
+    videoUrl: "/videos/video3.mp4",
+    thumbnailUrl: "/thumbnails/video3.jpg",
+    title: "Playful Dog",
+  },
+  {
+    videoUrl: "/videos/video19.mp4",
+    thumbnailUrl: "/thumbnails/video19.jpg",
+    title: "Smiling Dog",
   },
 ];
 
@@ -59,9 +64,6 @@ export default function Hero() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedVideoUrl, setGeneratedVideoUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isPlayingDemo, setIsPlayingDemo] = useState(false);
-  const [selectedSampleVideo, setSelectedSampleVideo] = useState<string | null>(null);
-  const [selectedSampleTitle, setSelectedSampleTitle] = useState<string>("");
   const [rateLimitInfo, setRateLimitInfo] = useState<{ remainingMinutes: number; message: string } | null>(null);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<{ priceId: string; name: string } | null>(null);
@@ -308,14 +310,77 @@ export default function Hero() {
     }
   };
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (generatedVideoUrl) {
-      const link = document.createElement('a');
-      link.href = generatedVideoUrl;
-      link.download = 'talking-dog-video.mp4';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      try {
+        const response = await fetch(generatedVideoUrl);
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'talking-dog-video.mp4';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      } catch (error) {
+        console.error('Download failed:', error);
+        toast({
+          title: "Download failed",
+          description: "Please try again",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const handleShare = async () => {
+    if (generatedVideoUrl) {
+      try {
+        // Check if Web Share API is available
+        if (navigator.share) {
+          // Fetch the video file
+          const response = await fetch(generatedVideoUrl);
+          const blob = await response.blob();
+          const file = new File([blob], 'talking-dog-video.mp4', { type: 'video/mp4' });
+
+          await navigator.share({
+            title: 'My Talking Dog Video',
+            text: 'Check out this amazing talking dog video I made!',
+            files: [file],
+          });
+
+          toast({
+            title: "Shared successfully!",
+            description: "Your video has been shared.",
+          });
+        } else {
+          // Fallback: copy link to clipboard
+          await navigator.clipboard.writeText(window.location.origin + generatedVideoUrl);
+          toast({
+            title: "Link copied!",
+            description: "Video link has been copied to clipboard.",
+          });
+        }
+      } catch (error: any) {
+        if (error.name !== 'AbortError') {
+          console.error('Share failed:', error);
+          toast({
+            title: "Share failed",
+            description: "Please try downloading the video instead",
+            variant: "destructive",
+          });
+        }
+      }
+    }
+  };
+
+  const handleExpand = () => {
+    const videoElement = document.querySelector('video[data-testid="video-generated"]') as HTMLVideoElement;
+    if (videoElement) {
+      if (videoElement.requestFullscreen) {
+        videoElement.requestFullscreen();
+      }
     }
   };
 
@@ -332,7 +397,7 @@ export default function Hero() {
             <div className="space-y-3">
               <div className="space-y-1">
                 <h1 className="text-4xl md:text-5xl font-bold leading-tight text-foreground tracking-tight">
-                  Bring Your Pup to Life
+                  Bring a Pup to Life
                 </h1>
                 <div className="flex items-center gap-2 text-3xl md:text-4xl text-primary flex-wrap">
                   <span className="font-semibold whitespace-nowrap">for</span>
@@ -425,31 +490,17 @@ export default function Hero() {
                     </p>
                   </div>
 
-                  <div className="flex justify-center items-center py-4">
-                    <img
-                      src="/assets/LoadingAnimation.gif"
-                      alt="Dog walking animation"
-                      className="h-48 w-48 md:h-56 md:w-56 object-contain"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
-                      <div
-                        className="bg-primary h-full rounded-full transition-all duration-1000 ease-linear"
-                        style={{
-                          width: '100%',
-                          animation: 'progressBar 180s linear forwards'
-                        }}
-                      ></div>
-                      <style>{`
-                        @keyframes progressBar {
-                          0% { width: 0%; }
-                          100% { width: 100%; }
-                        }
-                      `}</style>
+                  {/* Warning Message - Stay on Page */}
+                  <div className="mt-6 max-w-md mx-auto">
+                    <div className="bg-blue-50 border-2 border-blue-400 rounded-lg p-4 flex items-start gap-3">
+                      <AlertTriangle className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <h4 className="text-sm font-bold text-blue-900 mb-1">Keep This Tab Open</h4>
+                        <p className="text-xs text-blue-800 leading-relaxed">
+                          Your video is generating! Refreshing this page will lose progress tracking, but your video will continue generating on our servers. Check your Dashboard in 2-3 minutes to find your completed video.
+                        </p>
+                      </div>
                     </div>
-                    <p className="text-xs text-muted-foreground">Generating your 8-second masterpiece...</p>
                   </div>
                 </div>
               ) : rateLimitInfo ? (
@@ -497,7 +548,7 @@ export default function Hero() {
                   </div>
                 </div>
               ) : (
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={(e) => handleSubmit(e, credits > 0)} className="space-y-4">
                   {/* Image Upload */}
                   <div>
                     <label
@@ -597,7 +648,7 @@ export default function Hero() {
                       </span>
                     </div>
                     <Textarea
-                      placeholder="Example: Hey! It's me, Luna! Don't forget my treats today!"
+                      placeholder="Example: Hey! It's me, Luna! Don't forget my treats today!&#10;&#10;Multiple dogs? Use: Dog 1: I'm the boss! Dog 2: No way, I am!"
                       value={prompt}
                       onChange={(e) => setPrompt(e.target.value)}
                       className="min-h-20 text-sm resize-none"
@@ -652,16 +703,17 @@ export default function Hero() {
             </Card>
           </div>
 
-          <div className="relative flex flex-col items-center justify-start order-first md:order-last">
-            <div className="relative">
+          <div className="relative flex flex-col items-center justify-start order-first md:order-last h-full">
+            <div className="relative w-full h-full max-w-[650px]">
               <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-accent/20 rounded-3xl blur-3xl"></div>
-              <div className="relative w-80 h-80 md:w-[450px] md:h-[450px] rounded-3xl bg-gradient-to-br from-primary/10 to-accent/10 flex items-center justify-center overflow-hidden border-4 border-primary/20 shadow-2xl">
+              <div className="relative w-full h-full min-h-[500px] md:min-h-[600px] rounded-3xl bg-gradient-to-br from-primary/10 to-accent/10 flex items-center justify-center overflow-hidden border-4 border-primary/20 shadow-2xl">
                 {generatedVideoUrl ? (
                   <div className="relative w-full h-full group">
                     <video
                       key={generatedVideoUrl}
                       src={generatedVideoUrl}
                       controls
+                      autoPlay
                       preload="metadata"
                       playsInline
                       muted={false}
@@ -689,6 +741,14 @@ export default function Hero() {
                       }}
                     />
                     <button
+                      onClick={handleExpand}
+                      className="absolute top-4 left-4 z-50 w-10 h-10 rounded-full bg-black/50 hover:bg-black/70 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
+                      aria-label="Expand video"
+                      data-testid="button-expand-video"
+                    >
+                      <Maximize2 className="h-5 w-5 text-white" />
+                    </button>
+                    <button
                       onClick={(e) => {
                         e.stopPropagation();
                         setGeneratedVideoUrl(null);
@@ -701,124 +761,72 @@ export default function Hero() {
                     </button>
                   </div>
                 ) : isGenerating ? (
-                  <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-primary/5 to-accent/5 p-8">
-                    <img
-                      src={logoImage}
-                      alt="MakeMyDogTalk Logo"
-                      className="h-32 w-32 md:h-40 md:w-40 mb-6 animate-pulse"
-                    />
-                    <p className="text-xl md:text-2xl font-bold text-center text-foreground">
-                      Your Video Will Appear Here When Finished!
-                    </p>
-                  </div>
-                ) : isPlayingDemo ? (
-                  <video
-                    src={demoVideo}
-                    controls
-                    autoPlay
-                    preload="auto"
-                    playsInline
-                    className="w-full h-full object-cover"
-                    data-testid="video-demo"
-                    onEnded={() => setIsPlayingDemo(false)}
-                  />
-                ) : (
-                  <>
-                    <img
-                      src={heroImage}
-                      alt="Happy dog"
-                      className="w-full h-full object-cover"
-                      data-testid="img-hero-dog"
-                    />
-                    <button
-                      onClick={() => setIsPlayingDemo(true)}
-                      className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black/40 hover:bg-black/50 transition-all group"
-                      data-testid="button-play-demo"
+                  <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-primary/5 to-accent/5 p-6">
+                    <video
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                      className="h-48 w-48 md:h-56 md:w-56 object-contain mb-4"
                     >
-                      <div className="flex items-center justify-center w-20 h-20 md:w-24 md:h-24 rounded-full bg-white/90 group-hover:bg-white group-hover:scale-110 transition-all shadow-2xl">
-                        <Play className="h-10 w-10 md:h-12 md:w-12 text-primary fill-primary ml-1" />
+                      <source src="/assets/LoadingScreenDog.mp4" type="video/mp4" />
+                      <img
+                        src="/assets/LoadingScreenDog.gif"
+                        alt="Dog loading animation"
+                        className="h-48 w-48 md:h-56 md:w-56 object-contain"
+                      />
+                    </video>
+                    <div className="w-full max-w-md px-6">
+                      <div className="w-full bg-muted rounded-full h-2 overflow-hidden mb-2">
+                        <div
+                          className="bg-primary h-full rounded-full transition-all duration-1000 ease-linear"
+                          style={{
+                            width: '100%',
+                            animation: 'progressBar 180s linear forwards'
+                          }}
+                        ></div>
+                        <style>{`
+                          @keyframes progressBar {
+                            0% { width: 0%; }
+                            100% { width: 100%; }
+                          }
+                        `}</style>
                       </div>
-                      <div className="px-6 py-3 bg-white/95 rounded-full shadow-xl">
-                        <p className="text-base md:text-lg font-bold text-foreground">
-                          Click to Make Me Talk! 🐾
-                        </p>
-                      </div>
-                    </button>
-                  </>
+                      <p className="text-xs text-muted-foreground text-center">Generating your 8-second masterpiece...</p>
+                    </div>
+                  </div>
+                ) : (
+                  <VideoCollage videos={sampleVideos} />
                 )}
               </div>
               {generatedVideoUrl && (
-                <Button
-                  variant="default"
-                  size="lg"
-                  className="absolute -bottom-6 left-1/2 -translate-x-1/2 gap-2 shadow-xl border-2"
-                  onClick={handleDownload}
-                  data-testid="button-download"
-                >
-                  <Download className="h-5 w-5" />
-                  Download Video
-                </Button>
-              )}
-            </div>
-
-            {/* Sample Videos Section - Below the video */}
-            <div className="mt-12 text-center">
-              <h2 className="text-xl md:text-2xl font-bold mb-6 text-muted-foreground">
-                Watch a Sample Video
-              </h2>
-              <div className="flex justify-center gap-4 md:gap-6 flex-wrap">
-                {sampleVideos.map((sample, index) => (
-                  <div
-                    key={index}
-                    className="flex flex-col items-center gap-2 cursor-pointer group"
-                    onClick={() => {
-                      setSelectedSampleVideo(sample.videoUrl);
-                      setSelectedSampleTitle(sample.title);
-                    }}
-                    data-testid={`sample-video-${index}`}
+                <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 flex gap-3">
+                  <Button
+                    variant="default"
+                    size="lg"
+                    className="gap-2 shadow-xl border-2"
+                    onClick={handleDownload}
+                    data-testid="button-download"
                   >
-                    <div className="relative w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden border-4 border-primary/20 group-hover:border-primary/50 transition-all group-hover:scale-105 shadow-lg">
-                      <img
-                        src={sample.thumbnailUrl}
-                        alt={sample.title}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <p className="text-xs md:text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">
-                      {sample.title}
-                    </p>
-                  </div>
-                ))}
-              </div>
+                    <Download className="h-5 w-5" />
+                    Download
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="gap-2 shadow-xl border-2"
+                    onClick={handleShare}
+                    data-testid="button-share"
+                  >
+                    <Share2 className="h-5 w-5" />
+                    Share
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </div>
       </div>
-
-      {/* Sample Video Modal */}
-      <Dialog open={!!selectedSampleVideo} onOpenChange={(open) => !open && setSelectedSampleVideo(null)}>
-        <DialogContent className="max-w-3xl p-0 overflow-hidden">
-          <DialogTitle className="sr-only">{selectedSampleTitle}</DialogTitle>
-          <button
-            onClick={() => setSelectedSampleVideo(null)}
-            className="absolute top-4 right-4 z-50 w-8 h-8 rounded-full bg-black/50 hover:bg-black/70 flex items-center justify-center transition-colors"
-            aria-label="Close video"
-          >
-            <X className="h-5 w-5 text-white" />
-          </button>
-          {selectedSampleVideo && (
-            <video
-              key={selectedSampleVideo}
-              src={selectedSampleVideo}
-              controls
-              autoPlay
-              playsInline
-              className="w-full"
-              data-testid="sample-video-player"
-            />
-          )}
-        </DialogContent>
-      </Dialog>
 
       {/* Checkout Dialog */}
       {selectedProduct && (

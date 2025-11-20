@@ -23,7 +23,7 @@ export default function Header() {
   const { user, logout, isLoading } = useAuth();
 
   const navLinks = [
-    { href: "/how-to", label: "How to", testId: "link-howto" },
+    { href: "/how-to", label: "Tips & Tricks", testId: "link-howto" },
     { href: "/examples", label: "Examples", testId: "link-examples" },
     { href: "/pricing", label: "Pricing", testId: "link-pricing" },
   ];
@@ -98,7 +98,7 @@ export default function Header() {
                       </Avatar>
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-56" align="end">
+                  <DropdownMenuContent className="w-56 px-4" align="end">
                     <DropdownMenuLabel>
                       <div className="flex flex-col space-y-1">
                         <p className="text-sm font-medium">{user.name}</p>
@@ -150,7 +150,7 @@ export default function Header() {
         </div>
 
         {mobileMenuOpen && (
-          <nav className="md:hidden py-4 bg-background/95 backdrop-blur rounded-lg">
+          <nav className="md:hidden py-4 px-4 bg-background/95 backdrop-blur rounded-lg">
             <div className="flex flex-col gap-4">
               {/* Credits Display - Mobile */}
               {user && user.credits > 0 && (

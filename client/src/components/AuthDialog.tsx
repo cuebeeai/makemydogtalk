@@ -18,9 +18,10 @@ interface AuthDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   defaultTab?: 'login' | 'signup';
+  onSuccess?: () => void;
 }
 
-export function AuthDialog({ open, onOpenChange, defaultTab = 'login' }: AuthDialogProps) {
+export function AuthDialog({ open, onOpenChange, defaultTab = 'login', onSuccess }: AuthDialogProps) {
   const { login, loginWithEmail, signup } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -53,6 +54,8 @@ export function AuthDialog({ open, onOpenChange, defaultTab = 'login' }: AuthDia
         // Reset form
         setLoginEmail('');
         setLoginPassword('');
+        // Call onSuccess callback if provided
+        onSuccess?.();
       } else {
         setError(result.error || 'Login failed');
       }
@@ -131,6 +134,8 @@ export function AuthDialog({ open, onOpenChange, defaultTab = 'login' }: AuthDia
         setSignupPassword('');
         setSignupConfirmPassword('');
         setPromoCode('');
+        // Call onSuccess callback if provided
+        onSuccess?.();
       } else {
         setError(result.error || 'Signup failed');
       }
@@ -310,7 +315,7 @@ export function AuthDialog({ open, onOpenChange, defaultTab = 'login' }: AuthDia
                   className="text-center font-semibold tracking-wider"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Get 5 free video credits with a valid promo code!
+                  Get 3 free video credits with a valid promo code!
                 </p>
               </div>
 
@@ -374,3 +379,5 @@ export function AuthDialog({ open, onOpenChange, defaultTab = 'login' }: AuthDia
     </Dialog>
   );
 }
+
+export default AuthDialog;

@@ -62,6 +62,10 @@ export function registerStripeRoutes(app: Express) {
         }
       }
 
+      // Determine checkout mode based on product type
+      const isSubscription = product.type === 'subscription';
+      const checkoutMode = isSubscription ? 'subscription' : 'payment';
+
       // Create Checkout Session
       const session = await stripe!.checkout.sessions.create({
         ui_mode: 'embedded',
@@ -71,7 +75,7 @@ export function registerStripeRoutes(app: Express) {
             quantity: 1,
           },
         ],
-        mode: 'payment',
+        mode: checkoutMode,
         return_url: `${req.protocol}://${req.get('host')}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
         customer: stripeCustomerId, // Associate with customer
         customer_update: {
@@ -83,6 +87,7 @@ export function registerStripeRoutes(app: Express) {
           priceId,
           productName: product.name,
           credits: product.credits.toString(),
+          productType: product.type,
         },
       });
 
@@ -162,6 +167,8 @@ export function registerStripeRoutes(app: Express) {
           const userId = session.metadata?.userId;
           const priceId = session.metadata?.priceId;
           const credits = parseInt(session.metadata?.credits || '0', 10);
+          const productType = session.metadata?.productType;
+          const productName = session.metadata?.productName || 'Unknown Product';
 
           if (!userId || !credits) {
             console.error('Missing metadata in checkout session:', session.id);
@@ -174,14 +181,85 @@ export function registerStripeRoutes(app: Express) {
             await storage.updateUser(userId, {
               credits: (user.credits || 0) + credits
             });
-            console.log(`✅ Payment successful! Added ${credits} credits to ${user.email}. New balance: ${(user.credits || 0) + credits}`);
+
+            // Save transaction record
+            await storage.createTransaction({
+              userId,
+              stripeSessionId: session.id,
+              stripePaymentIntentId: session.payment_intent as string | null,
+              amount: session.amount_total ? (session.amount_total / 100).toString() : '0',
+              currency: session.currency || 'usd',
+              credits,
+              productName,
+              status: 'completed',
+            });
+
+            console.log(`✅ ${productType === 'subscription' ? 'Subscription' : 'Payment'} successful! Added ${credits} credits to ${user.email}. New balance: ${(user.credits || 0) + credits}`);
           } else {
             // Fallback to in-memory credit manager for anonymous users
             creditManager.addCredits(userId, credits);
-            console.log(`✅ Payment successful! Added ${credits} credits to ${userId} (in-memory)`);
+            console.log(`✅ ${productType === 'subscription' ? 'Subscription' : 'Payment'} successful! Added ${credits} credits to ${userId} (in-memory)`);
           }
           console.log(`Session ID: ${session.id}, Amount: ${session.amount_total ? session.amount_total / 100 : 'N/A'}`);
 
+          break;
+        }
+
+        case 'invoice.payment_succeeded': {
+          // Handle recurring subscription payments
+          const invoice = event.data.object as any; // Use any to access subscription property
+
+          // Check if this is a subscription invoice
+          const subscriptionId = typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id;
+          const customerId = typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id;
+
+          if (subscriptionId && customerId) {
+            const subscription = await stripe!.subscriptions.retrieve(subscriptionId);
+            const priceId = subscription.items.data[0]?.price.id;
+
+            // Get product info by price ID
+            const product = getProductByPriceId(priceId);
+
+            if (product && product.type === 'subscription') {
+              // For now, we'll need to query users by stripeCustomerId
+              // This is a limitation - in production you'd want an index or better query method
+              // For MVP, we can store the userId in subscription metadata
+              const userId = subscription.metadata?.userId;
+
+              if (userId) {
+                const user = await storage.getUser(userId);
+                if (user) {
+                  await storage.updateUser(user.id, {
+                    credits: (user.credits || 0) + product.credits
+                  });
+
+                  // Save transaction record for subscription renewal
+                  await storage.createTransaction({
+                    userId: user.id,
+                    stripeSessionId: `sub_${subscriptionId}`,
+                    stripePaymentIntentId: invoice.payment_intent as string || null,
+                    amount: invoice.amount_paid ? (invoice.amount_paid / 100).toString() : '0',
+                    currency: invoice.currency || 'usd',
+                    credits: product.credits,
+                    productName: product.name,
+                    status: 'completed',
+                  });
+
+                  console.log(`✅ Subscription renewal! Added ${product.credits} credits to ${user.email}. New balance: ${(user.credits || 0) + product.credits}`);
+                }
+              } else {
+                console.warn(`No userId found in subscription metadata for ${subscriptionId}`);
+              }
+            }
+          }
+          break;
+        }
+
+        case 'customer.subscription.deleted': {
+          // Handle subscription cancellation
+          const subscription = event.data.object as Stripe.Subscription;
+          console.log(`🔔 Subscription cancelled: ${subscription.id}`);
+          // Note: User keeps remaining credits, just won't get renewed
           break;
         }
 
@@ -213,8 +291,12 @@ export function registerStripeRoutes(app: Express) {
       if (req.user) {
         // For authenticated users, get credits from database
         const user = await storage.getUser(req.user.id);
+        const adminCredits = user?.adminCredits || 0;
+        const purchasedCredits = user?.credits || 0;
         res.json({
-          credits: user?.credits || 0,
+          credits: purchasedCredits + adminCredits, // Total available credits
+          purchasedCredits: purchasedCredits,
+          adminCredits: adminCredits,
           lastUpdated: user?.createdAt || null,
           user: { email: user?.email, name: user?.name },
         });

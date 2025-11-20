@@ -55,7 +55,7 @@ export default function Privacy() {
               <h2 className="text-2xl font-semibold text-foreground">4. Data Retention</h2>
               <p className="text-foreground">
                 Uploads and generated videos may be retained for a limited period to operate the service or show your dashboard history.
-                You may request deletion by emailing <a href="mailto:support@makemydogtalk.com" className="text-primary hover:underline">support@makemydogtalk.com</a>.
+                You may request deletion by emailing <a href="mailto:makemydogtalk@gmail.com" className="text-primary hover:underline">makemydogtalk@gmail.com</a>.
               </p>
             </section>
 
@@ -90,7 +90,7 @@ export default function Privacy() {
             <section className="space-y-3">
               <h2 className="text-2xl font-semibold text-foreground">9. Contact</h2>
               <p className="text-foreground">
-                Questions about privacy? Contact us at <a href="mailto:support@makemydogtalk.com" className="text-primary hover:underline">support@makemydogtalk.com</a>
+                Questions about privacy? Contact us at <a href="mailto:makemydogtalk@gmail.com" className="text-primary hover:underline">makemydogtalk@gmail.com</a>
               </p>
             </section>
           </div>

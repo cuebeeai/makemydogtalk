@@ -4,6 +4,7 @@ import { VideoOperation } from '@shared/schema';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import CheckoutDialog from '@/components/CheckoutDialog';
+import AdminPanel from '@/components/AdminPanel';
 import { PRODUCTS } from '@/lib/products';
 import { Coins, ShoppingCart, User as UserIcon, PawPrint, Play, ArrowLeft, LogOut, X } from 'lucide-react';
 import { Link } from 'wouter';
@@ -20,13 +21,21 @@ const Dashboard: React.FC = () => {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<{ priceId: string; name: string } | null>(null);
   const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
-
-  const isAdmin = user?.email === import.meta.env.VITE_ADMIN_EMAIL;
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
+        // Fetch admin status
+        const adminRes = await fetch('/api/admin/check', { credentials: 'include' });
+        const adminData = await adminRes.json();
+        console.log('Admin check response:', adminData);
+        if (adminRes.ok) {
+          setIsAdmin(adminData.isAdmin);
+          console.log('Setting isAdmin to:', adminData.isAdmin);
+        }
+
         // Fetch credits
         const creditsRes = await fetch('/api/credits');
         const creditsData = await creditsRes.json();
@@ -92,6 +101,13 @@ const Dashboard: React.FC = () => {
             <p className="text-muted-foreground mt-2">Manage your creations and credits.</p>
           </header>
 
+          {/* Admin Panel - Only visible to admin users */}
+          {isAdmin && (
+            <div className="mb-12">
+              <AdminPanel />
+            </div>
+          )}
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
             {/* Available Credits Card */}
             <div className="bg-card border p-8 rounded-lg shadow-lg flex flex-col justify-between">
@@ -107,13 +123,13 @@ const Dashboard: React.FC = () => {
               </div>
               {!isAdmin && (
                 <div className="flex items-center gap-3 mt-6">
-                  <Button onClick={() => handleOpenCheckout(PRODUCTS.JUMP_LINE)}>
-                    <ShoppingCart className="h-4 w-4 mr-2" />
-                    Buy 1 Credit (${PRODUCTS.JUMP_LINE.price})
-                  </Button>
                   <Button onClick={() => handleOpenCheckout(PRODUCTS.THREE_PACK)}>
                     <ShoppingCart className="h-4 w-4 mr-2" />
                     Buy 3 Credits (${PRODUCTS.THREE_PACK.price})
+                  </Button>
+                  <Button onClick={() => handleOpenCheckout(PRODUCTS.TEN_PACK)}>
+                    <ShoppingCart className="h-4 w-4 mr-2" />
+                    Buy 10 Credits (${PRODUCTS.TEN_PACK.price})
                   </Button>
                 </div>
               )}

@@ -65,6 +65,16 @@ app.use((req, res, next) => {
       throw err;
     });
 
+    // Serve static files from public directory (videos, thumbnails, etc.)
+    // This needs to be before Vite middleware in development
+    // Exclude index.html so Vite can handle the main app
+    const path = await import("path");
+    const publicDir = path.resolve(import.meta.dirname, "..", "public");
+    console.log('Setting up static file serving from:', publicDir);
+    app.use(express.static(publicDir, {
+      index: false  // Don't serve index.html from public directory
+    }));
+
     // importantly only setup vite in development and after
     // setting up all the other routes so the catch-all route
     // doesn't interfere with the other routes
@@ -105,3 +115,34 @@ app.use((req, res, next) => {
     process.exit(1);
   }
 })();
+
+// Handle uncaught exceptions and unhandled rejections
+// This prevents the server from crashing on unexpected errors
+process.on('uncaughtException', (error) => {
+  console.error('❌ Uncaught Exception:', error);
+  // In production, you might want to log this to a service like Sentry
+  // For now, we'll log it but keep the server running
+  if (process.env.NODE_ENV === 'production') {
+    // Don't exit in production - let the platform handle restarts
+    console.error('Server continuing despite uncaught exception');
+  }
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+  // In production, you might want to log this to a service like Sentry
+  if (process.env.NODE_ENV === 'production') {
+    console.error('Server continuing despite unhandled rejection');
+  }
+});
+
+// Handle graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('👋 SIGTERM signal received: closing server gracefully');
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('👋 SIGINT signal received: closing server gracefully');
+  process.exit(0);
+});

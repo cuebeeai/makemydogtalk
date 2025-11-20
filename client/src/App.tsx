@@ -37,7 +37,6 @@ function App() {
       <AuthProvider>
         <TooltipProvider>
           <Toaster />
-          <Header />
           <Router />
         </TooltipProvider>
       </AuthProvider>

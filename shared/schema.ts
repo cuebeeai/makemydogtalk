@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, integer, decimal } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -17,6 +17,7 @@ export const users = pgTable("users", {
 
   // Account management
   credits: integer("credits").notNull().default(0),
+  adminCredits: integer("admin_credits").notNull().default(0), // Credits given by admin (can be revoked)
   stripeCustomerId: text("stripe_customer_id"),
 
   // Timestamps
@@ -85,3 +86,24 @@ export const insertWaitlistEmailSchema = createInsertSchema(waitlistEmails, {
 
 export type InsertWaitlistEmail = z.infer<typeof insertWaitlistEmailSchema>;
 export type WaitlistEmail = typeof waitlistEmails.$inferSelect;
+
+export const transactions = pgTable("transactions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: text("user_id").notNull(), // Reference to users table
+  stripeSessionId: text("stripe_session_id").notNull().unique(),
+  stripePaymentIntentId: text("stripe_payment_intent_id"),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(), // Amount in dollars
+  currency: text("currency").notNull().default("usd"),
+  credits: integer("credits").notNull(), // Number of credits purchased
+  productName: text("product_name").notNull(), // e.g., "1 Credit", "3 Credits"
+  status: text("status").notNull(), // e.g., "completed", "pending", "failed"
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertTransactionSchema = createInsertSchema(transactions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
+export type Transaction = typeof transactions.$inferSelect;

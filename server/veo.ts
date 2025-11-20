@@ -97,52 +97,84 @@ function calculateVideoDuration(prompt: string, tone?: string, hasAction?: boole
   // Calculate base duration for dialogue (in seconds)
   const dialogueDuration = (wordCount / wordsPerMinute) * 60;
 
-  // Add buffer time:
-  // - 0.5 seconds at start for natural beginning
-  // - 0.5 seconds at end for natural ending
-  // - Additional 1-2 seconds if there's an action to perform
-  let bufferTime = 1.0; // Base buffer (start + end)
+  // Veo API only accepts specific durations: 4, 6, or 8 seconds
+  // IMPORTANT: We don't add buffer time because:
+  // 1. Veo handles padding/timing automatically
+  // 2. Adding buffer causes speech to be cut off when we hit the 8s max
+  // 3. The dialogue duration calculation already accounts for natural speaking pace
 
-  if (hasAction) {
-    // More buffer for action sequences
-    bufferTime += 1.5;
+  // Round UP to the next valid duration to ensure full dialogue fits
+  let finalDuration: number;
+  if (dialogueDuration <= 4) {
+    finalDuration = 4;
+  } else if (dialogueDuration <= 6) {
+    finalDuration = 6;
+  } else if (dialogueDuration <= 8) {
+    finalDuration = 8;
+  } else {
+    // If dialogue is longer than 8 seconds, we still use 8 (max allowed)
+    // The speech will be slightly rushed to fit
+    finalDuration = 8;
   }
-
-  const totalDuration = dialogueDuration + bufferTime;
-
-  // Clamp between 2 and 8 seconds (Veo API constraints)
-  const finalDuration = Math.max(2, Math.min(8, Math.ceil(totalDuration)));
 
   console.log(`📊 Video duration calculation:
     - Word count: ${wordCount}
     - Tone: ${tone || 'default'} (${wordsPerMinute} WPM)
     - Dialogue duration: ${dialogueDuration.toFixed(1)}s
-    - Buffer time: ${bufferTime}s
     - Has action: ${hasAction ? 'yes' : 'no'}
-    - Final duration: ${finalDuration}s`);
+    - Final duration (rounded UP to valid): ${finalDuration}s`);
 
   return finalDuration;
 }
 
-function buildEnhancedPrompt(config: VideoGenerationConfig, duration: number): string {
-  // Build minimal prompt - just voice, dialogue, and action WITHOUT quotes or "dog speaking" prefix
-  // to avoid triggering subtitle generation. User form fields stay the same.
+function buildEnhancedPrompt(config: VideoGenerationConfig): string {
+  // Build prompt with explicit instruction for the dog(s) to speak
+  // This makes it clear to Veo that the dog should have mouth movement and audio
   const parts: string[] = [];
 
-  // Add voice style if provided (optional) - goes first for natural flow
-  if (config.voiceStyle && config.voiceStyle.trim()) {
-    parts.push(config.voiceStyle.trim());
+  // Check if this is a multi-dog dialogue (contains "Dog 1:", "Dog 2:", etc.)
+  const isMultiDog = /Dog\s+\d+:/i.test(config.prompt);
+
+  if (isMultiDog) {
+    // MULTI-DOG DIALOGUE MODE
+    // Build explicit instructions for Veo
+    parts.push("multiple dogs speaking in sequence");
+
+    if (config.voiceStyle && config.voiceStyle.trim()) {
+      parts.push(config.voiceStyle.trim());
+    }
+
+    // Add explicit instruction to speak ALL dialogue with proper timing
+    parts.push(`each dog says their complete dialogue with full lip-sync: ${config.prompt}`);
+
+    // Emphasize that ALL words must be spoken
+    parts.push("ensure every word is spoken clearly with mouth movements synchronized to audio");
+
+  } else {
+    // SINGLE DOG MODE
+    // IMPORTANT: Explicitly state "dog speaking" to ensure:
+    // 1. Content moderation understands this is pet dialogue (prevents false positives)
+    // 2. Veo knows to animate the dog's mouth and sync with audio
+    parts.push("dog speaking");
+
+    // Add voice style if provided (optional) - describes HOW the dog speaks
+    if (config.voiceStyle && config.voiceStyle.trim()) {
+      parts.push(config.voiceStyle.trim());
+    }
+
+    // Add the dialogue with explicit instructions to speak EVERYTHING
+    parts.push(`saying the complete dialogue: ${config.prompt}`);
+
+    // Add explicit instruction to ensure ALL words are spoken with lip-sync
+    parts.push("speaking every single word clearly with mouth movements perfectly synchronized to audio");
   }
 
-  // Add the dialogue (required) - NO QUOTES to prevent subtitle generation
-  parts.push(config.prompt);
-
-  // Add action if provided (optional)
+  // Add action if provided (optional) - additional body language/movement
   if (config.action && config.action.trim()) {
     parts.push(config.action.trim());
   }
 
-  // Join with commas - simple and natural
+  // Join with commas - creates a natural prompt flow
   const prompt = parts.join(', ');
 
   return prompt;
@@ -161,7 +193,7 @@ export async function generateVideo(config: VideoGenerationConfig): Promise<Vide
     const hasAction = !!(config.action && config.action.trim());
     const duration = calculateVideoDuration(config.prompt, config.tone, hasAction);
 
-    const enhancedPrompt = buildEnhancedPrompt(config, duration);
+    const enhancedPrompt = buildEnhancedPrompt(config);
 
     console.log('🎬 Generated prompt:', enhancedPrompt);
 
@@ -280,7 +312,7 @@ export async function checkVideoStatus(operationName: string): Promise<VideoStat
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
+      await response.text();
       const errorData = await response.json().catch(() => ({}));
       const rawError = errorData.error?.message || `Status check failed: ${response.status}`;
       const sanitizedError = sanitizeError({ message: rawError });

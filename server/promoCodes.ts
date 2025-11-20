@@ -34,29 +34,29 @@ class PromoCodeManager {
    * Initialize default promo codes
    */
   private initializeDefaultCodes() {
-    // Social media tracking codes - 5 free videos each
+    // Social media tracking codes - 3 free videos each
     this.addPromoCode({
       code: 'FACEBOOK',
-      credits: 5,
-      description: 'Facebook ad source - 5 free video generations',
+      credits: 3,
+      description: 'Facebook ad source - 3 free video generations',
     });
 
     this.addPromoCode({
       code: 'LINKEDIN',
-      credits: 5,
-      description: 'LinkedIn ad source - 5 free video generations',
+      credits: 3,
+      description: 'LinkedIn ad source - 3 free video generations',
     });
 
     this.addPromoCode({
       code: 'INSTAGRAM',
-      credits: 5,
-      description: 'Instagram ad source - 5 free video generations',
+      credits: 3,
+      description: 'Instagram ad source - 3 free video generations',
     });
 
     this.addPromoCode({
       code: 'TWITTER',
-      credits: 5,
-      description: 'Twitter ad source - 5 free video generations',
+      credits: 3,
+      description: 'Twitter ad source - 3 free video generations',
     });
   }
 
