@@ -2601,15 +2601,20 @@ async function initializeApp() {
   }
 }
 async function handler(req, res) {
+  console.log(`\u{1F4E8} Request: ${req.method} ${req.url}`);
   try {
     await initializeApp();
     return app(req, res);
   } catch (error) {
-    console.error("Handler error:", error);
-    res.status(500).json({
-      error: "Server initialization failed",
-      message: error instanceof Error ? error.message : "Unknown error"
-    });
+    console.error("\u274C Handler error:", error);
+    console.error("Stack:", error instanceof Error ? error.stack : "No stack trace");
+    if (!res.headersSent) {
+      res.status(500).json({
+        error: "Server initialization failed",
+        message: error instanceof Error ? error.message : "Unknown error",
+        stack: process.env.NODE_ENV === "development" ? error instanceof Error ? error.stack : void 0 : void 0
+      });
+    }
   }
 }
 export {

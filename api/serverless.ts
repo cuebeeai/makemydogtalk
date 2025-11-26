@@ -44,15 +44,23 @@ async function initializeApp() {
 
 // Vercel serverless handler
 export default async function handler(req: Request, res: Response) {
+  console.log(`📨 Request: ${req.method} ${req.url}`);
+
   try {
     await initializeApp();
     // Pass request to Express app
     return app(req, res);
   } catch (error) {
-    console.error('Handler error:', error);
-    res.status(500).json({
-      error: 'Server initialization failed',
-      message: error instanceof Error ? error.message : 'Unknown error'
-    });
+    console.error('❌ Handler error:', error);
+    console.error('Stack:', error instanceof Error ? error.stack : 'No stack trace');
+
+    // Try to send response if not already sent
+    if (!res.headersSent) {
+      res.status(500).json({
+        error: 'Server initialization failed',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.stack : undefined) : undefined
+      });
+    }
   }
 }
