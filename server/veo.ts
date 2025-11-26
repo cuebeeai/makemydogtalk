@@ -55,8 +55,58 @@ export interface VideoGenerationConfig {
   voiceStyle?: string;
   action?: string;
   background?: string;
-  aspectRatio?: "16:9" | "9:16" | "1:1";
+  aspectRatio?: "16:9" | "9:16" | "1:1"; // Note: 1:1 will be converted to 9:16 (Veo limitation)
   resolution?: "720p" | "1080p";
+}
+
+// Prompt versioning for A/B testing and debugging
+const PROMPT_VERSION = "2.1";
+const MIN_DURATION_SECONDS = 4; // Minimum for a good video loop
+const MAX_DURATION_SECONDS = 8; // Veo max (or budget cap)
+const CHARS_PER_SECOND = 15; // Average speaking rate for English
+
+/**
+ * Calculate dynamic video duration based on prompt length
+ * Prevents awkward pauses (too short text) or rushed speech (too long text)
+ */
+function calculateDuration(text: string): number {
+  const calculated = Math.ceil(text.length / CHARS_PER_SECOND);
+  const duration = Math.max(MIN_DURATION_SECONDS, Math.min(MAX_DURATION_SECONDS, calculated));
+  console.log(`⏱️  Duration calculation: ${text.length} chars ÷ ${CHARS_PER_SECOND} chars/sec = ${calculated}s → clamped to ${duration}s`);
+  return duration;
+}
+
+/**
+ * Build voice style description from tone and voiceStyle fields
+ */
+function buildVoiceDescription(tone?: string, voiceStyle?: string): string {
+  const parts: string[] = [];
+
+  // Map tone to voice characteristics
+  const toneDescriptions: Record<string, string> = {
+    excited: 'energetic, fast-paced, enthusiastic voice',
+    funny: 'comedic, playful voice with good timing',
+    professional: 'clear, articulate, professional voice',
+    friendly: 'warm, casual, approachable voice',
+    calm: 'soothing, measured, relaxed voice',
+    sad: 'soft, emotional, slower-paced voice',
+  };
+
+  if (tone && toneDescriptions[tone]) {
+    parts.push(toneDescriptions[tone]);
+  }
+
+  // Add custom voice style if provided
+  if (voiceStyle && voiceStyle.trim().length > 0) {
+    parts.push(voiceStyle.trim());
+  }
+
+  // Default if nothing provided
+  if (parts.length === 0) {
+    return 'natural, clear voice';
+  }
+
+  return parts.join(', ');
 }
 
 export interface VideoGenerationResult {
@@ -71,113 +121,92 @@ export interface VideoStatusResult {
 }
 
 /**
- * Calculate optimal video duration based on dialogue length and tone
- * @param prompt - The dialogue text
- * @param tone - The speaking tone (affects pace)
- * @param hasAction - Whether there's an action to perform (adds buffer time)
- * @returns Duration in seconds (minimum 2, maximum 8)
+ * Build structured prompt for Veo 3.1 using dynamic duration
+ * This ensures consistency, prevents morphing, and maintains lip-sync quality
  */
-function calculateVideoDuration(prompt: string, tone?: string, hasAction?: boolean): number {
-  // Count words in the prompt
-  const wordCount = prompt.trim().split(/\s+/).length;
-
-  // Determine words per minute based on tone
-  const wpmByTone: Record<string, number> = {
-    excited: 170,      // Fast, energetic pace
-    funny: 160,        // Quick, comedic timing
-    professional: 145, // Clear, moderate pace
-    friendly: 140,     // Casual, comfortable pace
-    calm: 130,         // Slower, measured pace
-    sad: 120,          // Slow, emotional pace
-  };
-
-  // Default to average pace if tone not specified or not in map
-  const wordsPerMinute = tone ? (wpmByTone[tone] || 140) : 140;
-
-  // Calculate base duration for dialogue (in seconds)
-  const dialogueDuration = (wordCount / wordsPerMinute) * 60;
-
-  // Veo API only accepts specific durations: 4, 6, or 8 seconds
-  // IMPORTANT: We don't add buffer time because:
-  // 1. Veo handles padding/timing automatically
-  // 2. Adding buffer causes speech to be cut off when we hit the 8s max
-  // 3. The dialogue duration calculation already accounts for natural speaking pace
-
-  // Round UP to the next valid duration to ensure full dialogue fits
-  let finalDuration: number;
-  if (dialogueDuration <= 4) {
-    finalDuration = 4;
-  } else if (dialogueDuration <= 6) {
-    finalDuration = 6;
-  } else if (dialogueDuration <= 8) {
-    finalDuration = 8;
-  } else {
-    // If dialogue is longer than 8 seconds, we still use 8 (max allowed)
-    // The speech will be slightly rushed to fit
-    finalDuration = 8;
-  }
-
-  console.log(`📊 Video duration calculation:
-    - Word count: ${wordCount}
-    - Tone: ${tone || 'default'} (${wordsPerMinute} WPM)
-    - Dialogue duration: ${dialogueDuration.toFixed(1)}s
-    - Has action: ${hasAction ? 'yes' : 'no'}
-    - Final duration (rounded UP to valid): ${finalDuration}s`);
-
-  return finalDuration;
-}
-
-function buildEnhancedPrompt(config: VideoGenerationConfig): string {
-  // Build prompt with explicit instruction for the dog(s) to speak
-  // This makes it clear to Veo that the dog should have mouth movement and audio
-  const parts: string[] = [];
-
-  // Check if this is a multi-dog dialogue (contains "Dog 1:", "Dog 2:", etc.)
+function buildEnhancedPrompt(config: VideoGenerationConfig, duration: number): string {
+  // Check if this is a multi-dog dialogue
   const isMultiDog = /Dog\s+\d+:/i.test(config.prompt);
 
-  if (isMultiDog) {
-    // MULTI-DOG DIALOGUE MODE
-    // Build explicit instructions for Veo
-    parts.push("multiple dogs speaking in sequence");
+  // Build voice description
+  const voiceDescription = buildVoiceDescription(config.tone, config.voiceStyle);
 
-    if (config.voiceStyle && config.voiceStyle.trim()) {
-      parts.push(config.voiceStyle.trim());
-    }
+  // Use raw action from user (no sanitization)
+  const userAction = config.action && config.action.trim().length > 0
+    ? config.action.trim()
+    : '';
 
-    // Add explicit instruction to speak ALL dialogue with proper timing
-    parts.push(`each dog says their complete dialogue with full lip-sync: ${config.prompt}`);
+  // Determine orientation description
+  const orientationDesc = config.aspectRatio === '9:16'
+    ? 'Vertical 9:16 orientation (for TikTok/Reels/Shorts).'
+    : config.aspectRatio === '1:1'
+    ? 'Square 1:1 orientation.'
+    : 'Horizontal 16:9 orientation.';
 
-    // Emphasize that ALL words must be spoken
-    parts.push("ensure every word is spoken clearly with mouth movements synchronized to audio");
+  // Build the structured system prompt
+  const systemPrompt = `You are generating a short, ${duration}-second, photorealistic talking-dog video for an app called MakeMyDogTalk.com.
+Start from the provided dog photo and treat it as the exact first frame of the video.
 
-  } else {
-    // SINGLE DOG MODE
-    // IMPORTANT: Explicitly state "dog speaking" to ensure:
-    // 1. Content moderation understands this is pet dialogue (prevents false positives)
-    // 2. Veo knows to animate the dog's mouth and sync with audio
-    parts.push("dog speaking");
+Hard requirements (do NOT violate these):
+- Keep the dog's appearance IDENTICAL to the photo: same breed, face, fur color, clothing, accessories, body shape, and size.
+- Keep the background, lighting, camera angle, and composition EXACTLY the same as the photo.
+- Do NOT change the dog's species, add extra limbs, or stylize the dog in any way.
+- Do NOT move the camera. No cuts, no zooming, no scene changes.
+- Only add small, natural movements: mouth moving to talk, subtle head motion, ear twitches, blinking, maybe slight body shift.
+- The video should feel like the still image just came to life.
 
-    // Add voice style if provided (optional) - describes HOW the dog speaks
-    if (config.voiceStyle && config.voiceStyle.trim()) {
-      parts.push(config.voiceStyle.trim());
-    }
+Frame filling requirements (CRITICAL):
+- The ENTIRE video frame MUST be filled with image content - absolutely NO black bars, letterboxing, or pillarboxing anywhere.
+- If the source photo aspect ratio differs from the target ${config.aspectRatio || '16:9'} format, intelligently extend or crop the scene to fill the frame completely.
+- Keep the dog centered and fully visible, but ensure every pixel of the output is actual image content, not black padding.
 
-    // Add the dialogue with explicit instructions to speak EVERYTHING
-    parts.push(`saying the complete dialogue: ${config.prompt}`);
+Lip-sync requirements:
+- Animate the dog's mouth to match the syllables of the dialogue text provided.
+- The dog should appear to be speaking clearly, with natural mouth movements.
+- Time the mouth motion so the speech line fits within ${duration} seconds.
 
-    // Add explicit instruction to ensure ALL words are spoken with lip-sync
-    parts.push("speaking every single word clearly with mouth movements perfectly synchronized to audio");
+Audio requirements:
+- Generate crystal clear, high-quality audio with excellent clarity and no muffling.
+- The voice should be crisp, well-articulated, and professionally recorded quality.
+- Ensure proper audio levels - not too quiet, not distorted.
+- Audio should sound natural and present, as if recorded in a professional studio.
+
+Style requirements:
+- Keep the overall look clean, sharp, and realistic, like a high-quality smartphone video.
+- No extra text, logos, or filters over the video.
+
+Now generate a single, continuous shot video that follows these rules.`;
+
+  // Build the per-request details section
+  let requestDetails = `
+
+Voice style: ${voiceDescription}`;
+
+  // Only add action line if user provided one
+  if (userAction) {
+    requestDetails += `
+
+Requested action: ${userAction}`;
   }
 
-  // Add action if provided (optional) - additional body language/movement
-  if (config.action && config.action.trim()) {
-    parts.push(config.action.trim());
-  }
+  requestDetails += `
 
-  // Join with commas - creates a natural prompt flow
-  const prompt = parts.join(', ');
+${isMultiDog ? 'Dialogue (multiple dogs speaking in sequence):' : 'Dialogue (what the dog says):'}
+"${config.prompt}"
 
-  return prompt;
+Duration: ${duration} seconds.
+${orientationDesc}`;
+
+  // Combine system prompt + request details
+  const fullPrompt = systemPrompt + requestDetails;
+
+  // Log for debugging (with version info)
+  console.log(`🎬 Generated prompt (v${PROMPT_VERSION}):`);
+  console.log('---START PROMPT---');
+  console.log(fullPrompt);
+  console.log('---END PROMPT---');
+
+  return fullPrompt;
 }
 
 export async function generateVideo(config: VideoGenerationConfig): Promise<VideoGenerationResult> {
@@ -189,13 +218,10 @@ export async function generateVideo(config: VideoGenerationConfig): Promise<Vide
       ? 'image/png'
       : 'image/jpeg';
 
-    // Calculate optimal video duration based on dialogue length, tone, and whether there's an action
-    const hasAction = !!(config.action && config.action.trim());
-    const duration = calculateVideoDuration(config.prompt, config.tone, hasAction);
+    // Calculate dynamic duration based on prompt length
+    const duration = calculateDuration(config.prompt);
 
-    const enhancedPrompt = buildEnhancedPrompt(config);
-
-    console.log('🎬 Generated prompt:', enhancedPrompt);
+    const enhancedPrompt = buildEnhancedPrompt(config, duration);
 
     // Get OAuth 2.0 access token
     const accessToken = await getAccessToken();
@@ -203,16 +229,20 @@ export async function generateVideo(config: VideoGenerationConfig): Promise<Vide
     // Vertex AI endpoint for Veo 3.1 video generation
     const endpoint = `https://us-central1-aiplatform.googleapis.com/v1/projects/${VERTEX_AI_PROJECT_ID}/locations/us-central1/publishers/google/models/veo-3.1-generate-preview:predictLongRunning`;
 
-    // Determine aspect ratio - use the provided one, ensuring 9:16 is used for portrait images
-    let finalAspectRatio: "16:9" | "9:16" = "16:9";
-    if (config.aspectRatio === "9:16" || config.aspectRatio === "1:1") {
-      // For portrait or square images, use 9:16
-      finalAspectRatio = "9:16";
+    // Target aspect ratio (user-selected or default)
+    // Note: Veo 3.1 only supports 16:9 and 9:16, NOT 1:1
+    // If user selects 1:1, we'll use 9:16 (vertical) as it's closest
+    let finalAspectRatio: "16:9" | "9:16" = config.aspectRatio === "1:1"
+      ? "9:16"  // Map 1:1 to 9:16 since Veo doesn't support square
+      : (config.aspectRatio as "16:9" | "9:16") || "16:9";
+
+    if (config.aspectRatio === "1:1") {
+      console.log('⚠️  1:1 aspect ratio not supported by Veo 3.1, using 9:16 instead');
     }
+    console.log('📐 Target aspect ratio:', finalAspectRatio, '(source image may be extended/cropped to fit)');
 
-    console.log('📐 Using aspect ratio:', finalAspectRatio, '(detected from image:', config.aspectRatio, ')');
-
-    // Build request body with minimal parameters to let Veo handle image preservation naturally
+    // Build request body with clean parameters for Veo 3.1
+    // Using only validated parameters to prevent issues
     const requestBody = {
       instances: [{
         prompt: enhancedPrompt,
@@ -226,11 +256,18 @@ export async function generateVideo(config: VideoGenerationConfig): Promise<Vide
         durationSeconds: duration,
         generateAudio: true,
         sampleCount: 1,
-        // Try to disable subtitles/captions
-        enableSubtitles: false,
-        addSubtitles: false,
       },
     };
+
+    // Log full generation parameters for debugging and A/B testing
+    console.log(`📊 Generation Parameters (Prompt v${PROMPT_VERSION}):`);
+    console.log(`   - Duration: ${duration}s (fixed)`);
+    console.log(`   - Aspect Ratio: ${finalAspectRatio}`);
+    console.log(`   - Generate Audio: true`);
+    console.log(`   - Sample Count: 1`);
+    console.log(`   - Voice Style: ${buildVoiceDescription(config.tone, config.voiceStyle)}`);
+    console.log(`   - Action (user input): ${config.action || 'none'}`);
+    console.log(`   - Dialogue Length: ${config.prompt.length} chars`);
 
     console.log("Initiating video generation request...");
 
@@ -245,15 +282,22 @@ export async function generateVideo(config: VideoGenerationConfig): Promise<Vide
 
     if (!response.ok) {
       const errorText = await response.text();
+      console.error("❌ Vertex AI API Error Response:");
+      console.error("Status:", response.status, response.statusText);
+      console.error("Raw response:", errorText);
+
       let errorData;
       try {
         errorData = JSON.parse(errorText);
+        console.error("Parsed error data:", JSON.stringify(errorData, null, 2));
       } catch {
         errorData = { message: errorText };
       }
       const rawError = errorData.error?.message || errorData.message || `API request failed: ${response.status} ${response.statusText}`;
+      console.error("Extracted error message:", rawError);
+
       const sanitizedError = sanitizeError({ message: rawError });
-      console.error("Vertex AI error:", sanitizedError);
+      console.error("Sanitized error:", sanitizedError);
       throw new Error(sanitizedError);
     }
 

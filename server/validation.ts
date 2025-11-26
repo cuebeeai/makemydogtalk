@@ -104,14 +104,16 @@ export function validateImageFile(file: Express.Multer.File): { valid: boolean; 
 export function sanitizeError(error: any): string {
   const errorMessage = error?.message || 'An unexpected error occurred';
 
-  // IMPORTANT: Check for content moderation errors FIRST before sanitizing
-  // These should be shown to users so they can fix their prompts
+  // IMPORTANT: Check for user-actionable errors FIRST before sanitizing
+  // These should be shown to users so they can fix their input
   if (errorMessage.includes('sensitive words') ||
       errorMessage.includes('Responsible AI practices') ||
       errorMessage.includes('violate') ||
-      errorMessage.includes('content policy')) {
-    // Return the full error message for content moderation issues
-    // Users need this feedback to understand why their prompt was rejected
+      errorMessage.includes('content policy') ||
+      errorMessage.includes('Invalid aspect ratio') ||
+      errorMessage.includes('Invalid') && errorMessage.includes('ratio')) {
+    // Return the full error message for user-actionable issues
+    // Users need this feedback to understand why their request was rejected
     return errorMessage;
   }
 

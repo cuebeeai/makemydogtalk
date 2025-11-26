@@ -41,6 +41,8 @@ export function registerStripeRoutes(app: Express) {
         return res.status(400).json({ error: 'Invalid price ID' });
       }
 
+      console.log(`[CHECKOUT] Price ID: ${priceId}, Product: ${product.name}, Expected Price: $${product.price}`);
+
       // Get user identifier: Prioritize authenticated user ID, fallback to IP
       const userId = req.user?.id || req.ip || req.socket.remoteAddress || 'unknown';
       const userEmail = req.user?.email;
@@ -229,8 +231,12 @@ export function registerStripeRoutes(app: Express) {
               if (userId) {
                 const user = await storage.getUser(userId);
                 if (user) {
+                  const previousCredits = user.credits || 0;
+
+                  // For subscriptions, SET credits to the plan amount (don't add)
+                  // Unused credits from previous month do not roll over
                   await storage.updateUser(user.id, {
-                    credits: (user.credits || 0) + product.credits
+                    credits: product.credits
                   });
 
                   // Save transaction record for subscription renewal
@@ -245,7 +251,7 @@ export function registerStripeRoutes(app: Express) {
                     status: 'completed',
                   });
 
-                  console.log(`✅ Subscription renewal! Added ${product.credits} credits to ${user.email}. New balance: ${(user.credits || 0) + product.credits}`);
+                  console.log(`✅ Subscription renewal! Reset credits for ${user.email} from ${previousCredits} to ${product.credits} (unused credits do not roll over)`);
                 }
               } else {
                 console.warn(`No userId found in subscription metadata for ${subscriptionId}`);

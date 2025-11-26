@@ -6,9 +6,11 @@ import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import CheckoutDialog from "./CheckoutDialog";
+import AuthDialog from "./AuthDialog";
 import ExamplesModal from "./ExamplesModal";
 import VideoCollage from "./VideoCollage";
 import { PRODUCTS } from "@/lib/products";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Use public assets
 const heroImage = "/assets/hero.png";
@@ -55,17 +57,19 @@ const sampleVideos = [
 ];
 
 export default function Hero() {
+  const { user } = useAuth();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [prompt, setPrompt] = useState("");
   const [voiceStyle, setVoiceStyle] = useState("");
   const [action, setAction] = useState("");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [currentUseCaseIndex, setCurrentUseCaseIndex] = useState(0);
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false); // TODO: Set back to false
   const [generatedVideoUrl, setGeneratedVideoUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [rateLimitInfo, setRateLimitInfo] = useState<{ remainingMinutes: number; message: string } | null>(null);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<{ priceId: string; name: string } | null>(null);
   const [credits, setCredits] = useState(0);
   const [examplesModalOpen, setExamplesModalOpen] = useState(false);
@@ -101,8 +105,26 @@ export default function Hero() {
 
   // Handle opening checkout dialog
   const handleOpenCheckout = (product: { priceId: string; name: string }) => {
+    if (!user) {
+      // Show auth dialog if user is not logged in
+      setAuthDialogOpen(true);
+      // Store the product they wanted to buy
+      setSelectedProduct({ priceId: product.priceId, name: product.name });
+      return;
+    }
+
+    // User is logged in, proceed with checkout
     setSelectedProduct(product);
     setCheckoutOpen(true);
+  };
+
+  // Handle auth success - open checkout after user signs in
+  const handleAuthSuccess = () => {
+    setAuthDialogOpen(false);
+    // After successful auth, open checkout with the selected product
+    if (selectedProduct) {
+      setCheckoutOpen(true);
+    }
   };
 
   // Handle checkout dialog close
@@ -168,21 +190,27 @@ export default function Hero() {
         const ratio = img.width / img.height;
         console.log(`📸 Image dimensions: ${img.width}x${img.height}, ratio: ${ratio.toFixed(2)}`);
 
-        // Determine aspect ratio based on actual image dimensions
-        // Veo 3.1 only supports 16:9 and 9:16
-        let detectedRatio: "16:9" | "9:16";
+        // Calculate distance to each standard aspect ratio
+        const aspectRatios = {
+          "16:9": 16 / 9,   // 1.778
+          "1:1": 1.0,       // 1.0
+          "9:16": 9 / 16,   // 0.5625
+        };
 
-        if (ratio >= 1.0) {
-          // Image is landscape or square - use 16:9
-          detectedRatio = "16:9";
-          console.log(`📐 Detected landscape/square image → using 16:9 format`);
-        } else {
-          // Image is portrait - use 9:16
-          detectedRatio = "9:16";
-          console.log(`📐 Detected portrait image → using 9:16 format`);
+        // Find the closest matching aspect ratio
+        let closestRatio: "16:9" | "9:16" | "1:1" = "16:9";
+        let minDistance = Infinity;
+
+        for (const [format, standardRatio] of Object.entries(aspectRatios)) {
+          const distance = Math.abs(ratio - standardRatio);
+          if (distance < minDistance) {
+            minDistance = distance;
+            closestRatio = format as "16:9" | "9:16" | "1:1";
+          }
         }
 
-        resolve(detectedRatio);
+        console.log(`📐 Image ratio ${ratio.toFixed(2)} → closest match: ${closestRatio} (distance: ${minDistance.toFixed(3)})`);
+        resolve(closestRatio);
       };
       img.src = URL.createObjectURL(file);
     });
@@ -196,6 +224,9 @@ export default function Hero() {
     setIsGenerating(true);
     setError(null);
     setGeneratedVideoUrl(null);
+
+    // Scroll to top when generation starts
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 
     try {
       // Detect the aspect ratio from the uploaded image
@@ -228,6 +259,8 @@ export default function Hero() {
           message: data.message || 'Please wait before generating another video.'
         });
         setIsGenerating(false);
+        // Scroll to top to show rate limit message
+        window.scrollTo({ top: 0, behavior: 'smooth' });
         toast({
           title: "Rate limit reached",
           description: data.message,
@@ -250,9 +283,9 @@ export default function Hero() {
         description: "This may take 2-3 minutes. Please wait...",
       });
 
-      const pollingInterval = 10000;
+      const pollingInterval = 10000; // 10 seconds
       let attempts = 0;
-      const maxAttempts = 30;
+      const maxAttempts = 60; // 60 attempts × 10s = 10 minutes (Veo can take 2-7 minutes)
 
       const pollStatus = async () => {
         try {
@@ -275,6 +308,8 @@ export default function Hero() {
             setError(null);
             // Refresh credit balance
             fetchCredits();
+            // Scroll to top to show the video
+            window.scrollTo({ top: 0, behavior: 'smooth' });
             toast({
               title: "Video ready!",
               description: "Your video has been generated successfully.",
@@ -392,118 +427,255 @@ export default function Hero() {
   return (
     <section id="hero" className="pt-24 pb-12 md:pt-32 md:pb-16 min-h-screen flex items-center">
       <div className="max-w-7xl mx-auto px-6 w-full">
-        <div className="grid md:grid-cols-2 gap-12 items-start">
-          <div className="space-y-6">
-            <div className="space-y-3">
-              <div className="space-y-1">
-                <h1 className="text-4xl md:text-5xl font-bold leading-tight text-foreground tracking-tight">
-                  Bring a Pup to Life
-                </h1>
-                <div className="flex items-center gap-2 text-3xl md:text-4xl text-primary flex-wrap">
-                  <span className="font-semibold whitespace-nowrap">for</span>
-                  <span
-                    key={currentUseCaseIndex}
-                    className="inline-block animate-fade-in font-bold italic whitespace-nowrap"
-                    data-testid="text-rotating-usecase"
-                    style={{
-                      fontFamily: '"Rounded", "Avenir Next Rounded", "Quicksand", "Montserrat", sans-serif',
-                      transform: 'scaleY(1.2)'
-                    }}
-                  >
-                    {useCases[currentUseCaseIndex]}
-                  </span>
-                </div>
+        {generatedVideoUrl ? (
+          // Video Display Mode - Centered layout
+          <div className="flex flex-col items-center justify-center w-full space-y-8">
+            {/* Generated Video */}
+            <div className="relative w-full max-w-3xl">
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-accent/20 rounded-3xl blur-3xl"></div>
+              <div className="relative w-full aspect-video rounded-3xl bg-gradient-to-br from-primary/10 to-accent/10 flex items-center justify-center overflow-hidden border-4 border-primary/20 shadow-2xl">
+                <video
+                  key={generatedVideoUrl}
+                  src={generatedVideoUrl}
+                  controls
+                  autoPlay
+                  preload="metadata"
+                  playsInline
+                  muted={false}
+                  crossOrigin="anonymous"
+                  className="w-full h-full object-contain"
+                  data-testid="video-generated"
+                  onError={(e) => {
+                    console.error("Video load error:", e);
+                    console.error("Video src:", generatedVideoUrl);
+                    console.error("Video error details:", e.currentTarget.error);
+                    setError("Failed to load video. Try downloading it instead.");
+                  }}
+                  onLoadedMetadata={(e) => {
+                    console.log("Video loaded successfully:", generatedVideoUrl);
+                    console.log("Video duration:", e.currentTarget.duration);
+                  }}
+                  onLoadStart={(e) => {
+                    console.log("Video loading started:", generatedVideoUrl);
+                  }}
+                  onCanPlay={(e) => {
+                    console.log("Video can play:", generatedVideoUrl);
+                  }}
+                  onLoadedData={(e) => {
+                    console.log("Video data loaded:", generatedVideoUrl);
+                  }}
+                />
               </div>
-              <p className="text-base md:text-lg text-muted-foreground leading-relaxed">
-                Generate a talking video from a photo + prompt. Watch your furry friend come to life!
-              </p>
             </div>
 
-            <Card className="p-6 space-y-5 border-2 shadow-lg w-full relative">
-              {generatedVideoUrl ? (
-                credits > 0 ? (
-                  // User has credits - allow immediate video generation
-                  <div className="text-center space-y-4" data-testid="success-section">
-                    <div className="space-y-2">
-                      <h3 className="text-xl font-bold text-foreground">Video Ready! 🎉</h3>
-                      <p className="text-sm text-muted-foreground">
-                        You have {credits} {credits === 1 ? 'credit' : 'credits'} remaining. Keep creating!
+            {/* Action Buttons */}
+            <div className="flex flex-wrap gap-3 justify-center">
+              <Button
+                variant="default"
+                size="lg"
+                className="gap-2 shadow-xl border-2 bg-primary hover:bg-primary/90"
+                onClick={handleDownload}
+                data-testid="button-download"
+              >
+                <Download className="h-5 w-5" />
+                Download
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                className="gap-2 shadow-xl border-2 bg-background hover:bg-accent/10"
+                onClick={handleShare}
+                data-testid="button-share"
+              >
+                <Share2 className="h-5 w-5" />
+                Share
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                className="gap-2 shadow-xl border-2 bg-background hover:bg-accent/10"
+                onClick={() => {
+                  setGeneratedVideoUrl(null);
+                  setSelectedFile(null);
+                  setPreviewUrl(null);
+                  setPrompt("");
+                  setVoiceStyle("");
+                  setAction("");
+                  setError(null);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                data-testid="button-create-another"
+              >
+                <PawPrint className="h-5 w-5" />
+                Create Another
+              </Button>
+              {!user && (
+                <Button
+                  variant="default"
+                  size="lg"
+                  className="gap-2 shadow-xl border-2 bg-gradient-to-r from-primary to-accent hover:opacity-90"
+                  onClick={() => setAuthDialogOpen(true)}
+                  data-testid="button-sign-up"
+                >
+                  Sign Up / Create Account
+                </Button>
+              )}
+            </div>
+          </div>
+        ) : isGenerating ? (
+          // Processing Mode - Centered single column layout
+          <div className="flex flex-col items-center justify-center w-full max-w-4xl mx-auto">
+            <div className="space-y-6 py-6" data-testid="processing-status">
+              {/* Processing Container */}
+              <div className="text-center space-y-4">
+                <div className="space-y-2">
+                  <h3 className="text-xl font-bold text-foreground">Processing Your Video 🐾</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Your furry friend is getting ready to speak! This usually takes 2-3 minutes.
+                  </p>
+                </div>
+
+                {/* Warning Message - Stay on Page */}
+                <div className="max-w-md mx-auto">
+                  <div className="bg-blue-50 border-2 border-blue-400 rounded-lg p-4 flex items-start gap-3">
+                    <AlertTriangle className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <h4 className="text-sm font-bold text-blue-900 mb-1">Keep This Tab Open</h4>
+                      <p className="text-xs text-blue-800 leading-relaxed">
+                        Your video is generating! Refreshing this page will lose progress tracking, but your video will continue generating on our servers. Check your Dashboard in 2-3 minutes to find your completed video.
                       </p>
                     </div>
+                  </div>
+                </div>
 
-                    <Button
-                      size="lg"
-                      className="w-full text-base font-semibold h-12"
-                      onClick={() => {
-                        setGeneratedVideoUrl(null);
-                        setSelectedFile(null);
-                        setPreviewUrl(null);
-                        setPrompt("");
-                        setVoiceStyle("");
-                        setAction("");
-                        setError(null);
+                {/* Progress Bar */}
+                <div className="w-full max-w-md mx-auto pt-2">
+                  <div className="w-full bg-muted rounded-full h-2 overflow-hidden mb-2">
+                    <div
+                      className="bg-primary h-full rounded-full transition-all duration-1000 ease-linear"
+                      style={{
+                        width: '100%',
+                        animation: 'progressBar 420s linear forwards'
                       }}
-                      data-testid="button-create-another"
-                    >
-                      <PawPrint className="h-5 w-5 mr-2" />
-                      Create Another Video
-                    </Button>
+                    ></div>
+                    <style>{`
+                      @keyframes progressBar {
+                        0% { width: 0%; }
+                        100% { width: 100%; }
+                      }
+                    `}</style>
                   </div>
-                ) : (
-                  // User has no credits - show paywall
-                  <div className="text-center space-y-4" data-testid="paywall-section">
-                    <div className="space-y-2">
-                      <h3 className="text-xl font-bold text-foreground">Love Your Video? 🎥</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Want to create more talking dog videos? Choose a plan below:
+                  <p className="text-xs text-muted-foreground text-center">Generating your video masterpiece...</p>
+                </div>
+              </div>
+
+              {/* Ad Space Container - Centered Below */}
+              <div className="w-full flex justify-center pt-4">
+                <div className="w-full max-w-2xl">
+                  <div className="relative bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-600 p-6 md:p-8 shadow-lg overflow-hidden group hover:border-primary/50 transition-all duration-300">
+                    {/* Background Pattern */}
+                    <div className="absolute inset-0 opacity-5">
+                      <div className="absolute inset-0" style={{
+                        backgroundImage: 'radial-gradient(circle at 2px 2px, currentColor 1px, transparent 0)',
+                        backgroundSize: '24px 24px'
+                      }}></div>
+                    </div>
+
+                    {/* Content */}
+                    <div className="relative z-10 text-center space-y-3">
+                      {/* Badge */}
+                      <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-primary/10 text-primary rounded-full text-sm font-semibold">
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+                        </span>
+                        Premium Ad Space Available
+                      </div>
+
+                      {/* Main Heading */}
+                      <h3 className="text-xl md:text-2xl font-bold text-foreground leading-tight">
+                        Reach 1000s of Dog Lovers
+                        <br />
+                        <span className="text-primary">While They Wait</span>
+                      </h3>
+
+                      {/* Description */}
+                      <p className="text-xs md:text-sm text-muted-foreground max-w-lg mx-auto leading-relaxed">
+                        Your brand could be here! Join our exclusive carousel of sponsors seen by engaged pet parents during video generation.
                       </p>
-                    </div>
 
-                    <div className="space-y-3">
-                      <Button
-                        size="lg"
-                        className="w-full text-base font-semibold h-12"
-                        data-testid="button-buy-single"
-                        onClick={() => handleOpenCheckout({ priceId: PRODUCTS.JUMP_LINE.priceId, name: PRODUCTS.JUMP_LINE.name })}
-                      >
-                        ${PRODUCTS.JUMP_LINE.price} - {PRODUCTS.JUMP_LINE.name} ({PRODUCTS.JUMP_LINE.credits} Credit)
-                      </Button>
+                      {/* Features Grid */}
+                      <div className="grid grid-cols-3 gap-2 md:gap-3 pt-2 max-w-xl mx-auto">
+                        <div className="bg-white/50 dark:bg-slate-800/50 rounded-lg p-2 backdrop-blur-sm">
+                          <div className="text-base md:text-lg font-bold text-primary">2-5 min</div>
+                          <div className="text-xs text-muted-foreground">View Time</div>
+                        </div>
+                        <div className="bg-white/50 dark:bg-slate-800/50 rounded-lg p-2 backdrop-blur-sm">
+                          <div className="text-base md:text-lg font-bold text-primary">10 Slots</div>
+                          <div className="text-xs text-muted-foreground">Total Available</div>
+                        </div>
+                        <div className="bg-white/50 dark:bg-slate-800/50 rounded-lg p-2 backdrop-blur-sm">
+                          <div className="text-base md:text-lg font-bold text-primary">3 Premium</div>
+                          <div className="text-xs text-muted-foreground">+30s Spots</div>
+                        </div>
+                      </div>
 
-                      <Button
-                        size="lg"
-                        variant="default"
-                        className="w-full text-base font-semibold h-12 bg-gradient-to-r from-primary to-accent hover:opacity-90"
-                        data-testid="button-buy-bundle"
-                        onClick={() => handleOpenCheckout({ priceId: PRODUCTS.THREE_PACK.priceId, name: PRODUCTS.THREE_PACK.name })}
-                      >
-                        ${PRODUCTS.THREE_PACK.price} - {PRODUCTS.THREE_PACK.name} ({PRODUCTS.THREE_PACK.credits} Credits) ⭐
-                      </Button>
-                    </div>
-                  </div>
-                )
-              ) : isGenerating ? (
-                <div className="text-center space-y-4 py-6" data-testid="processing-status">
-                  <div className="space-y-2">
-                    <h3 className="text-xl font-bold text-foreground">Processing Your Video 🐾</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Your furry friend is getting ready to speak! This usually takes 2-3 minutes.
-                    </p>
-                  </div>
-
-                  {/* Warning Message - Stay on Page */}
-                  <div className="mt-6 max-w-md mx-auto">
-                    <div className="bg-blue-50 border-2 border-blue-400 rounded-lg p-4 flex items-start gap-3">
-                      <AlertTriangle className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                      <div className="flex-1">
-                        <h4 className="text-sm font-bold text-blue-900 mb-1">Keep This Tab Open</h4>
-                        <p className="text-xs text-blue-800 leading-relaxed">
-                          Your video is generating! Refreshing this page will lose progress tracking, but your video will continue generating on our servers. Check your Dashboard in 2-3 minutes to find your completed video.
+                      {/* CTA */}
+                      <div className="pt-2">
+                        <a
+                          href="mailto:makemydogtalk@gmail.com?subject=Ad%20Space%20Inquiry&body=Hi,%0D%0A%0D%0AI'm%20interested%20in%20advertising%20on%20MakeMyDogTalk.com.%0D%0A%0D%0ACompany%20Name:%0D%0AWebsite:%0D%0APreferred%20Ad%20Duration:%20Standard%20/%20Premium%20(+30s)%0D%0A%0D%0AThank%20you!"
+                          className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary/90 transition-all duration-200 shadow-md hover:shadow-lg hover:scale-105 text-sm"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                          </svg>
+                          Inquire About Advertising
+                        </a>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          All submissions reviewed for brand alignment • First come, first served
                         </p>
                       </div>
                     </div>
+
+                    {/* Decorative Corner Elements */}
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -translate-y-16 translate-x-16 group-hover:scale-110 transition-transform duration-500"></div>
+                    <div className="absolute bottom-0 left-0 w-24 h-24 bg-accent/5 rounded-full translate-y-12 -translate-x-12 group-hover:scale-110 transition-transform duration-500"></div>
                   </div>
                 </div>
-              ) : rateLimitInfo ? (
+              </div>
+            </div>
+          </div>
+        ) : (
+          // Form Mode - Two column layout
+          <div className="grid md:grid-cols-2 gap-12 items-start">
+            <div className="space-y-6">
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <h1 className="text-4xl md:text-5xl font-bold leading-tight text-foreground tracking-tight">
+                    Bring a Pup to Life
+                  </h1>
+                  <div className="flex items-center gap-2 text-3xl md:text-4xl text-primary flex-wrap">
+                    <span className="font-semibold whitespace-nowrap">for</span>
+                    <span
+                      key={currentUseCaseIndex}
+                      className="inline-block animate-fade-in font-bold italic whitespace-nowrap"
+                      data-testid="text-rotating-usecase"
+                      style={{
+                        fontFamily: '"Rounded", "Avenir Next Rounded", "Quicksand", "Montserrat", sans-serif',
+                        transform: 'scaleY(1.2)'
+                      }}
+                    >
+                      {useCases[currentUseCaseIndex]}
+                    </span>
+                  </div>
+                </div>
+                <p className="text-base md:text-lg text-muted-foreground leading-relaxed">
+                  Generate a talking video from a photo + prompt. Watch your furry friend come to life!
+                </p>
+              </div>
+
+            <Card className="p-6 space-y-5 border-2 shadow-lg w-full relative">
+              {rateLimitInfo ? (
                 <div className="text-center space-y-4 py-6" data-testid="rate-limit-section">
                   <div className="space-y-2">
                     <h3 className="text-xl font-bold text-foreground">🐾 Free Limit Reached</h3>
@@ -524,9 +696,9 @@ export default function Hero() {
                       size="lg"
                       className="w-full text-base font-semibold h-12 bg-gradient-to-r from-primary to-accent hover:opacity-90"
                       data-testid="button-skip-line"
-                      onClick={() => handleOpenCheckout({ priceId: PRODUCTS.JUMP_LINE.priceId, name: PRODUCTS.JUMP_LINE.name })}
+                      onClick={() => handleOpenCheckout(PRODUCTS.THREE_PACK)}
                     >
-                      Skip the Line for ${PRODUCTS.JUMP_LINE.price} ⚡
+                      Get {PRODUCTS.THREE_PACK.credits} Credits for ${PRODUCTS.THREE_PACK.price}
                     </Button>
 
                     <Button
@@ -540,6 +712,8 @@ export default function Hero() {
                         setPrompt("");
                         setVoiceStyle("");
                         setAction("");
+                        // Scroll to top to show form
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
                       }}
                       data-testid="button-wait"
                     >
@@ -704,128 +878,15 @@ export default function Hero() {
           </div>
 
           <div className="relative flex flex-col items-center justify-start order-first md:order-last h-full">
-            <div className="relative w-full h-full max-w-[650px]">
+            <div className="relative w-full h-full max-w-[650px] pb-20">
               <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-accent/20 rounded-3xl blur-3xl"></div>
               <div className="relative w-full h-full min-h-[500px] md:min-h-[600px] rounded-3xl bg-gradient-to-br from-primary/10 to-accent/10 flex items-center justify-center overflow-hidden border-4 border-primary/20 shadow-2xl">
-                {generatedVideoUrl ? (
-                  <div className="relative w-full h-full group">
-                    <video
-                      key={generatedVideoUrl}
-                      src={generatedVideoUrl}
-                      controls
-                      autoPlay
-                      preload="metadata"
-                      playsInline
-                      muted={false}
-                      crossOrigin="anonymous"
-                      className="w-full h-full object-contain"
-                      data-testid="video-generated"
-                      onError={(e) => {
-                        console.error("Video load error:", e);
-                        console.error("Video src:", generatedVideoUrl);
-                        console.error("Video error details:", e.currentTarget.error);
-                        setError("Failed to load video. Try downloading it instead.");
-                      }}
-                      onLoadedMetadata={(e) => {
-                        console.log("Video loaded successfully:", generatedVideoUrl);
-                        console.log("Video duration:", e.currentTarget.duration);
-                      }}
-                      onLoadStart={(e) => {
-                        console.log("Video loading started:", generatedVideoUrl);
-                      }}
-                      onCanPlay={(e) => {
-                        console.log("Video can play:", generatedVideoUrl);
-                      }}
-                      onLoadedData={(e) => {
-                        console.log("Video data loaded:", generatedVideoUrl);
-                      }}
-                    />
-                    <button
-                      onClick={handleExpand}
-                      className="absolute top-4 left-4 z-50 w-10 h-10 rounded-full bg-black/50 hover:bg-black/70 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
-                      aria-label="Expand video"
-                      data-testid="button-expand-video"
-                    >
-                      <Maximize2 className="h-5 w-5 text-white" />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setGeneratedVideoUrl(null);
-                      }}
-                      className="absolute top-4 right-4 z-50 w-10 h-10 rounded-full bg-black/50 hover:bg-black/70 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
-                      aria-label="Close video"
-                      data-testid="button-close-video"
-                    >
-                      <X className="h-6 w-6 text-white" />
-                    </button>
-                  </div>
-                ) : isGenerating ? (
-                  <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-primary/5 to-accent/5 p-6">
-                    <video
-                      autoPlay
-                      loop
-                      muted
-                      playsInline
-                      className="h-48 w-48 md:h-56 md:w-56 object-contain mb-4"
-                    >
-                      <source src="/assets/LoadingScreenDog.mp4" type="video/mp4" />
-                      <img
-                        src="/assets/LoadingScreenDog.gif"
-                        alt="Dog loading animation"
-                        className="h-48 w-48 md:h-56 md:w-56 object-contain"
-                      />
-                    </video>
-                    <div className="w-full max-w-md px-6">
-                      <div className="w-full bg-muted rounded-full h-2 overflow-hidden mb-2">
-                        <div
-                          className="bg-primary h-full rounded-full transition-all duration-1000 ease-linear"
-                          style={{
-                            width: '100%',
-                            animation: 'progressBar 180s linear forwards'
-                          }}
-                        ></div>
-                        <style>{`
-                          @keyframes progressBar {
-                            0% { width: 0%; }
-                            100% { width: 100%; }
-                          }
-                        `}</style>
-                      </div>
-                      <p className="text-xs text-muted-foreground text-center">Generating your 8-second masterpiece...</p>
-                    </div>
-                  </div>
-                ) : (
-                  <VideoCollage videos={sampleVideos} />
-                )}
+                <VideoCollage videos={sampleVideos} />
               </div>
-              {generatedVideoUrl && (
-                <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 flex gap-3">
-                  <Button
-                    variant="default"
-                    size="lg"
-                    className="gap-2 shadow-xl border-2"
-                    onClick={handleDownload}
-                    data-testid="button-download"
-                  >
-                    <Download className="h-5 w-5" />
-                    Download
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    className="gap-2 shadow-xl border-2"
-                    onClick={handleShare}
-                    data-testid="button-share"
-                  >
-                    <Share2 className="h-5 w-5" />
-                    Share
-                  </Button>
-                </div>
-              )}
             </div>
           </div>
         </div>
+        )}
       </div>
 
       {/* Checkout Dialog */}
@@ -837,6 +898,13 @@ export default function Hero() {
           productName={selectedProduct.name}
         />
       )}
+
+      {/* Auth Dialog */}
+      <AuthDialog
+        open={authDialogOpen}
+        onOpenChange={setAuthDialogOpen}
+        onSuccess={handleAuthSuccess}
+      />
 
       {/* Examples Modal */}
       <ExamplesModal

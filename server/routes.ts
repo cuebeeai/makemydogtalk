@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import express from "express";
 import multer from "multer";
@@ -47,7 +47,29 @@ const multerStorage = multer.diskStorage({
 const upload = multer({
   storage: multerStorage,
   limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    // Log file upload attempt
+    console.log(`📁 File upload attempt: ${file.originalname}, mimetype: ${file.mimetype}, size: ${file.size}`);
+
+    // Accept the file (validation happens after upload)
+    cb(null, true);
+  }
 });
+
+// Multer error handler middleware
+function handleMulterError(err: any, req: Request, res: Response, next: NextFunction) {
+  if (err instanceof multer.MulterError) {
+    console.error('Multer error:', err.code, err.message);
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ error: 'File size exceeds 10MB limit' });
+    }
+    return res.status(400).json({ error: `File upload error: ${err.message}` });
+  } else if (err) {
+    console.error('Unknown upload error:', err);
+    return res.status(500).json({ error: 'File upload failed' });
+  }
+  next();
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Health check endpoint for Cloud Run
@@ -111,9 +133,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     next();
   }, express.static(path.join(process.cwd(), "uploads")));
 
-  app.post("/api/generate-video", optionalAuth, upload.single("image"), async (req, res) => {
+  app.post("/api/generate-video", optionalAuth, (req: Request, res: Response, next: NextFunction) => {
+    upload.single("image")(req, res, (err) => {
+      if (err) {
+        return handleMulterError(err, req, res, next);
+      }
+      next();
+    });
+  }, async (req: Request, res: Response) => {
     try {
+      console.log('📥 Generate video request received');
+      console.log('  - User:', req.user?.email || 'anonymous');
+      console.log('  - Has file:', !!req.file);
+      console.log('  - Prompt length:', req.body.prompt?.length || 0);
+      console.log('  - Aspect ratio:', req.body.aspectRatio);
+
       if (!req.file) {
+        console.error('❌ No file uploaded');
         return res.status(400).json({ error: "No image file provided" });
       }
 
