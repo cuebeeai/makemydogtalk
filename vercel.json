@@ -6,7 +6,7 @@
     { "source": "/auth/:path*", "destination": "/api/index" }
   ],
   "functions": {
-    "api/**/*.js": {
+    "api/index.ts": {
       "runtime": "nodejs20.x",
       "memory": 3008,
       "maxDuration": 60
