@@ -27,6 +27,7 @@ async function initializeApp() {
 
   try {
     // Import routes dynamically to catch errors
+    // Use root-relative path that Vercel can resolve
     const { registerRoutes } = await import("../server/routes.js");
     await registerRoutes(app);
 
