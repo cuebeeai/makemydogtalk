@@ -9,6 +9,9 @@ import { OAuth2Client } from 'google-auth-library';
 import { storage } from './storage.js';
 import { randomBytes } from 'crypto';
 import { type User } from '../shared/schema.js';
+import { db } from './db.js';
+import { sessions } from '../shared/schema.js';
+import { eq, lt } from 'drizzle-orm';
 
 /**
  * Get the OAuth redirect URI based on the current environment
@@ -28,16 +31,6 @@ const oauth2Client = new OAuth2Client(
   process.env.GOOGLE_CLIENT_SECRET,
   redirectUri
 );
-
-// Session token storage
-interface SessionData {
-  userId: string;
-  token: string;
-  createdAt: Date;
-  expiresAt: Date;
-}
-
-const sessions = new Map<string, SessionData>();
 
 /**
  * Generate a secure session token
@@ -123,15 +116,15 @@ export async function handleOAuthCallback(code: string): Promise<{ user: User; t
       throw new Error('Failed to create or retrieve user');
     }
 
-    // Create session token
+    // Create session token and store in database
     const token = generateSessionToken();
-    const session: SessionData = {
-      userId: user.id,
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+    await db.insert(sessions).values({
       token,
-      createdAt: new Date(),
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-    };
-    sessions.set(token, session);
+      userId: user.id,
+      expiresAt,
+    });
 
     console.log(`User logged in via Google: ${user.email}`);
 
@@ -148,21 +141,28 @@ export async function handleOAuthCallback(code: string): Promise<{ user: User; t
  * Verify session token and get user
  */
 export async function verifySessionToken(token: string): Promise<User | null> {
-  const session = sessions.get(token);
-  if (!session) {
+  const sessionResult = await db
+    .select()
+    .from(sessions)
+    .where(eq(sessions.token, token))
+    .limit(1);
+
+  if (sessionResult.length === 0) {
     return null;
   }
 
+  const session = sessionResult[0];
+
   // Check if session expired
   if (session.expiresAt < new Date()) {
-    sessions.delete(token);
+    await db.delete(sessions).where(eq(sessions.token, token));
     return null;
   }
 
   // Get user
   const user = await storage.getUser(session.userId);
   if (!user) {
-    sessions.delete(token);
+    await db.delete(sessions).where(eq(sessions.token, token));
     return null;
   }
 
@@ -174,30 +174,26 @@ export async function verifySessionToken(token: string): Promise<User | null> {
 /**
  * Logout session and clear token
  */
-export function logoutSession(token: string): void {
-  sessions.delete(token);
+export async function logoutSession(token: string): Promise<void> {
+  await db.delete(sessions).where(eq(sessions.token, token));
   console.log(`Session logged out`);
 }
 
 /**
  * Get all active sessions (for debugging)
  */
-export function getActiveSessions(): number {
-  return sessions.size;
+export async function getActiveSessions(): Promise<number> {
+  const allSessions = await db.select().from(sessions);
+  return allSessions.length;
 }
 
 /**
  * Clean up expired sessions
  */
-function cleanupExpiredSessions(): void {
+async function cleanupExpiredSessions(): Promise<void> {
   const now = new Date();
-  const expiredTokens: string[] = [];
-  sessions.forEach((session, token) => {
-    if (session.expiresAt < now) {
-      expiredTokens.push(token);
-    }
-  });
-  expiredTokens.forEach(token => sessions.delete(token));
+  await db.delete(sessions).where(lt(sessions.expiresAt, now));
+  console.log('Cleaned up expired sessions');
 }
 
 // Run cleanup every hour

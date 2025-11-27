@@ -107,3 +107,14 @@ export const insertTransactionSchema = createInsertSchema(transactions).omit({
 
 export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
 export type Transaction = typeof transactions.$inferSelect;
+
+export const sessions = pgTable("sessions", {
+  token: text("token").primaryKey(),
+  userId: text("user_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+});
+
+export const insertSessionSchema = createInsertSchema(sessions);
+export type InsertSession = z.infer<typeof insertSessionSchema>;
+export type Session = typeof sessions.$inferSelect;
