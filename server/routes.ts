@@ -10,7 +10,7 @@ import { rateLimiter } from "./rateLimiter.js";
 import { registerStripeRoutes } from "./stripe.js";
 import { registerAdminRoutes } from "./adminRoutes.js";
 import { creditManager } from "./credits.js";
-import { requireAuth } from "./middleware.js";
+import { optionalAuth, requireAuth } from "./middleware.js";
 import authRoutes from "./authRoutes.js";
 import { validateImageFile, sanitizeError } from "./validation.js";
 
