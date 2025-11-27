@@ -100,6 +100,90 @@ router.post('/auth/login', async (req: Request, res: Response) => {
 });
 
 // ========================================
+// SHARED AUTHENTICATION ROUTES
+// ========================================
+
+/**
+ * GET /auth/me
+ * Get current authenticated user info
+ */
+router.get('/auth/me', async (req: Request, res: Response) => {
+  try {
+    // Try to get token from cookie or Authorization header
+    const token = req.cookies?.auth_token || req.headers.authorization?.substring(7);
+
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        error: 'Not authenticated',
+      });
+    }
+
+    // Import verification functions
+    const { verifySessionToken } = await import('./auth.js');
+    const { verifySessionToken: verifyEmailSessionToken } = await import('./emailAuth.js');
+
+    // Try to verify with both auth methods
+    let user = await verifySessionToken(token);
+    if (!user) {
+      user = await verifyEmailSessionToken(token);
+    }
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid or expired session',
+      });
+    }
+
+    res.json({
+      success: true,
+      user,
+    });
+  } catch (error: any) {
+    console.error('[Auth Me Error]', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get user info',
+    });
+  }
+});
+
+/**
+ * POST /auth/logout
+ * Logout user and clear session
+ */
+router.post('/auth/logout', async (req: Request, res: Response) => {
+  try {
+    const token = req.cookies?.auth_token || req.headers.authorization?.substring(7);
+
+    if (token) {
+      // Import logout functions
+      const { logoutSession } = await import('./auth.js');
+      const { logoutSession: logoutEmailSession } = await import('./emailAuth.js');
+
+      // Try to logout from both session stores
+      await Promise.all([
+        logoutSession(token).catch(() => {}),
+        logoutEmailSession(token).catch(() => {}),
+      ]);
+    }
+
+    res.clearCookie('auth_token');
+    res.json({
+      success: true,
+      message: 'Logged out successfully',
+    });
+  } catch (error: any) {
+    console.error('[Logout Error]', error);
+    res.status(500).json({
+      success: false,
+      error: 'Logout failed',
+    });
+  }
+});
+
+// ========================================
 // GOOGLE OAUTH AUTHENTICATION
 // ========================================
 
