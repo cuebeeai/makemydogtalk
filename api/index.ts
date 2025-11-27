@@ -14,22 +14,15 @@ app.use(cookieParser());
 
 // Normalize Vercel rewrite paths so Express sees the original route
 app.use((req, _res, next) => {
-  const prefix = '/api/index';
+  // Vercel passes the original path in x-now-route-matches header
+  // But we can also reconstruct from the referrer or just use the URL as-is
+  // since we're sending everything to /api/index
 
-  if (req.url.startsWith(prefix)) {
-    const url = new URL(req.url, 'http://internal');
-    // Strip the /api/index prefix and rebuild the URL
-    const rewrittenPath = url.pathname.slice(prefix.length) || '/';
-    const search = url.searchParams;
-    const restQuery = new URLSearchParams(search);
-    const normalizedPath = rewrittenPath.startsWith('/') ? rewrittenPath : `/${rewrittenPath}`;
-
-    // Remove any query params that only existed to carry the wildcard
-    restQuery.delete('path');
-
-    const queryString = restQuery.toString();
-    req.url = queryString ? `${normalizedPath}?${queryString}` : normalizedPath;
-  }
+  console.log(`[Middleware] Original URL: ${req.url}`);
+  console.log(`[Middleware] Headers:`, JSON.stringify({
+    'x-forwarded-host': req.headers['x-forwarded-host'],
+    'x-vercel-id': req.headers['x-vercel-id'],
+  }));
 
   next();
 });
