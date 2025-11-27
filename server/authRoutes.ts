@@ -112,6 +112,11 @@ router.get('/auth/me', async (req: Request, res: Response) => {
     // Try to get token from cookie or Authorization header
     const token = req.cookies?.auth_token || req.headers.authorization?.substring(7);
 
+    console.log('[Auth Me] Cookies:', Object.keys(req.cookies || {}));
+    console.log('[Auth Me] Has auth_token cookie:', !!req.cookies?.auth_token);
+    console.log('[Auth Me] Has Authorization header:', !!req.headers.authorization);
+    console.log('[Auth Me] Token found:', !!token);
+
     if (!token) {
       return res.status(401).json({
         success: false,
