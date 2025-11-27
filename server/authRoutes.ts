@@ -34,11 +34,11 @@ router.post('/auth/signup', async (req: Request, res: Response) => {
     // Set httpOnly cookie
     res.cookie('auth_token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: true,
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      sameSite: 'lax',
+      sameSite: 'lax' as const,
       path: '/',
-      domain: process.env.NODE_ENV === 'production' ? '.makemydogtalk.com' : undefined,
+      // Don't set domain - let it default to the current domain
     });
 
     res.json({
@@ -77,11 +77,11 @@ router.post('/auth/login', async (req: Request, res: Response) => {
     // Set httpOnly cookie
     res.cookie('auth_token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: true,
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      sameSite: 'lax',
+      sameSite: 'lax' as const,
       path: '/',
-      domain: process.env.NODE_ENV === 'production' ? '.makemydogtalk.com' : undefined,
+      // Don't set domain - let it default to the current domain
     });
 
     res.json({
@@ -237,11 +237,11 @@ async function processOAuthCallback(req: Request, res: Response) {
 
     const cookieOptions = {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: true,
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       sameSite: 'lax' as const,
       path: '/',
-      domain: process.env.NODE_ENV === 'production' ? '.makemydogtalk.com' : undefined,
+      // Don't set domain - let it default to the current domain
     };
 
     console.log('[OAuth] Setting cookie with options:', {
