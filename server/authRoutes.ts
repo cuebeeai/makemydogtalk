@@ -252,7 +252,7 @@ async function processOAuthCallback(req: Request, res: Response) {
 
     const cookieOptions = {
       httpOnly: true,
-      secure: true,
+      secure: process.env.NODE_ENV === 'production',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       sameSite: 'lax' as const,
       path: '/',
