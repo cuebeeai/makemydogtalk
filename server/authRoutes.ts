@@ -118,28 +118,38 @@ router.get('/auth/me', async (req: Request, res: Response) => {
     console.log('[Auth Me] Token found:', !!token);
 
     if (!token) {
+      console.log('[Auth Me] No token found - returning 401');
       return res.status(401).json({
         success: false,
         error: 'Not authenticated',
       });
     }
 
+    console.log('[Auth Me] Token length:', token.length);
+    console.log('[Auth Me] Token preview:', token.substring(0, 20) + '...');
+
     // Import verification functions
     const { verifySessionToken } = await import('./auth.js');
     const { verifySessionToken: verifyEmailSessionToken } = await import('./emailAuth.js');
 
     // Try to verify with both auth methods
+    console.log('[Auth Me] Trying OAuth verification...');
     let user = await verifySessionToken(token);
+
     if (!user) {
+      console.log('[Auth Me] OAuth verification failed, trying email auth...');
       user = await verifyEmailSessionToken(token);
     }
 
     if (!user) {
+      console.log('[Auth Me] Both verifications failed - invalid or expired token');
       return res.status(401).json({
         success: false,
         error: 'Invalid or expired session',
       });
     }
+
+    console.log('[Auth Me] User verified:', user.email);
 
     res.json({
       success: true,
