@@ -10,10 +10,8 @@ import { rateLimiter } from "./rateLimiter.js";
 import { registerStripeRoutes } from "./stripe.js";
 import { registerAdminRoutes } from "./adminRoutes.js";
 import { creditManager } from "./credits.js";
-import { optionalAuth, requireAuth } from "./middleware.js";
+import { requireAuth } from "./middleware.js";
 import authRoutes from "./authRoutes.js";
-import { logoutSession } from "./auth.js";
-import { logoutSession as logoutEmailSession } from "./emailAuth.js";
 import { validateImageFile, sanitizeError } from "./validation.js";
 
 // Use /tmp for Vercel serverless (read-only filesystem otherwise)
@@ -78,39 +76,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Register unified authentication routes (Email/Password + OAuth)
+  // This includes /auth/google, /auth/google/callback, /auth/login, /auth/signup, /auth/me, /auth/logout
   app.use(authRoutes);
-
-  // Get current authenticated user
-  app.get('/auth/me', optionalAuth, (req, res) => {
-    if (req.user) {
-      res.json({
-        success: true,
-        user: req.user,
-      });
-    } else {
-      res.status(401).json({ success: false, error: 'Not authenticated' });
-    }
-  });
-
-  // Logout endpoint
-  app.post('/auth/logout', optionalAuth, (req, res) => {
-    try {
-      // Get token from cookie or header
-      const token = req.cookies?.auth_token || req.headers.authorization?.substring(7);
-
-      if (token) {
-        // Try to logout from both session stores
-        logoutSession(token);
-        logoutEmailSession(token);
-      }
-
-      res.clearCookie('auth_token');
-      res.json({ success: true, message: 'Logged out successfully' });
-    } catch (error: any) {
-      console.error('Logout failed');
-      res.status(500).json({ success: false, error: 'Logout failed' });
-    }
-  });
 
   // Register Stripe payment routes
   registerStripeRoutes(app);

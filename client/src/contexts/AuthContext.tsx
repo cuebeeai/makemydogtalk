@@ -48,7 +48,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Check if user is logged in on mount and handle OAuth callback
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const isOAuthCallback = params.get('auth') === 'success';
+    const authStatus = params.get('auth');
+    const isOAuthCallback = authStatus === 'success';
+    const isOAuthError = authStatus === 'error';
 
     if (isOAuthCallback) {
       console.log('OAuth callback detected, checking auth...');
@@ -58,6 +60,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setTimeout(() => {
         checkAuth();
       }, 100);
+    } else if (isOAuthError) {
+      const errorMessage = params.get('message') || 'Authentication failed';
+      console.error('OAuth error:', errorMessage);
+      alert(`Login failed: ${errorMessage}`);
+      // Remove the query parameter from URL
+      window.history.replaceState({}, '', window.location.pathname);
+      setIsLoading(false);
     } else {
       // Normal auth check
       checkAuth();

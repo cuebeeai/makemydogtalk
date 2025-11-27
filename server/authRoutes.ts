@@ -164,11 +164,9 @@ async function processOAuthCallback(req: Request, res: Response) {
     res.redirect(`/?auth=success`);
   } catch (error: any) {
     console.error('OAuth callback error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Authentication failed',
-      details: error.message,
-    });
+    console.error('Error stack:', error.stack);
+    // Redirect to home with error instead of returning JSON
+    res.redirect(`/?auth=error&message=${encodeURIComponent(error.message || 'Authentication failed')}`);
   }
 }
 
