@@ -1,12 +1,10 @@
 /**
  * Vercel Serverless Function Entry Point
- * This file gets bundled by esbuild with all server dependencies
+ * Vercel compiles this TypeScript file natively
  */
 
-import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
 import cookieParser from "cookie-parser";
-import { registerRoutes } from "../server/routes";
 
 // Create Express app
 const app = express();
@@ -16,14 +14,20 @@ app.use(cookieParser());
 
 // Initialize routes once (cached across invocations)
 let initialized = false;
+let initError: Error | null = null;
 
 async function initializeApp() {
   if (initialized) return;
+  if (initError) throw initError;
 
   console.log('🚀 Initializing serverless function...');
   console.log('NODE_ENV:', process.env.NODE_ENV);
+  console.log('Has DATABASE_URL:', !!process.env.DATABASE_URL);
+  console.log('Has GOOGLE_CLIENT_ID:', !!process.env.GOOGLE_CLIENT_ID);
 
   try {
+    // Import routes dynamically to catch errors
+    const { registerRoutes } = await import("../server/routes.js");
     await registerRoutes(app);
 
     // Error handler
@@ -38,7 +42,8 @@ async function initializeApp() {
     console.log('✅ Routes initialized successfully');
   } catch (error) {
     console.error('❌ Failed to initialize routes:', error);
-    throw error;
+    initError = error instanceof Error ? error : new Error(String(error));
+    throw initError;
   }
 }
 
