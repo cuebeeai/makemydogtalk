@@ -62,6 +62,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (isOAuthCallback) {
       console.log('OAuth callback detected, checking auth...');
+      console.log('[AuthContext] All cookies:', document.cookie);
+      console.log('[AuthContext] Has auth_debug cookie:', document.cookie.includes('auth_debug'));
       // Remove the query parameter from URL
       window.history.replaceState({}, '', window.location.pathname);
       // Add a small delay to ensure cookie is set

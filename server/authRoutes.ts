@@ -258,7 +258,13 @@ async function processOAuthCallback(req: Request, res: Response) {
     // Set httpOnly cookie
     res.cookie('auth_token', token, cookieOptions);
 
-    console.log('[OAuth] Redirecting to /?auth=success');
+    // Debug: Also set a non-httpOnly cookie to verify cookie setting works
+    res.cookie('auth_debug', 'cookie_was_set', {
+      ...cookieOptions,
+      httpOnly: false, // Allow JavaScript to read this one for debugging
+    });
+
+    console.log('[OAuth] Cookie set, redirecting to /?auth=success');
 
     // Redirect to frontend with success
     res.redirect(`/?auth=success`);
