@@ -8,7 +8,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifySessionToken } from './auth.js';
 import { verifySessionToken as verifyEmailSessionToken } from './emailAuth.js';
-import { type User } from '@shared/schema';
+import { type User } from '../shared/schema.js';
 
 // Extend Express Request type to include user
 declare global {

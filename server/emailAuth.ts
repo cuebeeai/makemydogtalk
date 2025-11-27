@@ -5,7 +5,7 @@
 
 import bcrypt from 'bcrypt';
 import { storage } from './storage.js';
-import { type User, insertUserSchema } from '@shared/schema';
+import { type User, insertUserSchema } from '../shared/schema.js';
 import { randomBytes } from 'crypto';
 
 const SALT_ROUNDS = 10;
