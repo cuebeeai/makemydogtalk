@@ -68,11 +68,19 @@ const CHARS_PER_SECOND = 15; // Average speaking rate for English
 /**
  * Calculate dynamic video duration based on prompt length
  * Prevents awkward pauses (too short text) or rushed speech (too long text)
+ * Veo 3.1 only supports durations of 4, 6, or 8 seconds
  */
 function calculateDuration(text: string): number {
   const calculated = Math.ceil(text.length / CHARS_PER_SECOND);
-  const duration = Math.max(MIN_DURATION_SECONDS, Math.min(MAX_DURATION_SECONDS, calculated));
-  console.log(`⏱️  Duration calculation: ${text.length} chars ÷ ${CHARS_PER_SECOND} chars/sec = ${calculated}s → clamped to ${duration}s`);
+  const clamped = Math.max(MIN_DURATION_SECONDS, Math.min(MAX_DURATION_SECONDS, calculated));
+
+  // Veo 3.1 only supports 4, 6, or 8 seconds - round to nearest supported value
+  const SUPPORTED_DURATIONS = [4, 6, 8];
+  const duration = SUPPORTED_DURATIONS.reduce((prev, curr) =>
+    Math.abs(curr - clamped) < Math.abs(prev - clamped) ? curr : prev
+  );
+
+  console.log(`⏱️  Duration calculation: ${text.length} chars ÷ ${CHARS_PER_SECOND} chars/sec = ${calculated}s → clamped to ${clamped}s → rounded to ${duration}s (supported: 4, 6, 8)`);
   return duration;
 }
 

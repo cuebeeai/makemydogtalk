@@ -111,6 +111,7 @@ export function sanitizeError(error: any): string {
       errorMessage.includes('violate') ||
       errorMessage.includes('content policy') ||
       errorMessage.includes('Invalid aspect ratio') ||
+      errorMessage.includes('Unsupported output video duration') ||
       errorMessage.includes('Invalid') && errorMessage.includes('ratio')) {
     // Return the full error message for user-actionable issues
     // Users need this feedback to understand why their request was rejected

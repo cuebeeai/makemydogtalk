@@ -4,8 +4,8 @@ import { GoogleAuth } from "google-auth-library";
 const VERTEX_AI_PROJECT_ID = process.env.VERTEX_AI_PROJECT_ID;
 const VERTEX_AI_LOCATION = process.env.VERTEX_AI_LOCATION || "us-central1";
 
-// Operation ID from the failed video
-const operationId = "projects/makemydogtalk-78f41/locations/us-central1/publishers/google/models/veo-3.1-generate-preview/operations/bf14e957-bcaa-4c26-82b3-1bc48712e96f";
+// Operation ID from the failed video (can be passed as command line argument)
+const operationId = process.argv[2] || "projects/makemydogtalk-78f41/locations/us-central1/publishers/google/models/veo-3.1-generate-preview/operations/bf14e957-bcaa-4c26-82b3-1bc48712e96f";
 
 async function debugRawError() {
   try {
