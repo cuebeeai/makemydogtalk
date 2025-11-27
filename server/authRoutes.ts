@@ -265,16 +265,16 @@ async function processOAuthCallback(req: Request, res: Response) {
       userEmail: user.email,
     });
 
-    // Set httpOnly cookie
-    res.cookie('auth_token', token, cookieOptions);
+    // Set httpOnly cookie with explicit Set-Cookie header
+    // Sometimes Express res.cookie() doesn't work properly in serverless
+    const cookieString = `auth_token=${token}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${7 * 24 * 60 * 60}`;
+    res.setHeader('Set-Cookie', [
+      cookieString,
+      `auth_debug=cookie_was_set; Secure; SameSite=Lax; Path=/; Max-Age=${7 * 24 * 60 * 60}`
+    ]);
 
-    // Debug: Also set a non-httpOnly cookie to verify cookie setting works
-    res.cookie('auth_debug', 'cookie_was_set', {
-      ...cookieOptions,
-      httpOnly: false, // Allow JavaScript to read this one for debugging
-    });
-
-    console.log('[OAuth] Cookie set, redirecting to /?auth=success');
+    console.log('[OAuth] Cookie set with Set-Cookie header, redirecting to /?auth=success');
+    console.log('[OAuth] Set-Cookie:', cookieString);
 
     // Redirect to frontend with success
     res.redirect(`/?auth=success`);
