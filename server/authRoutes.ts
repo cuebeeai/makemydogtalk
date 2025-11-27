@@ -140,15 +140,25 @@ async function processOAuthCallback(req: Request, res: Response) {
     // Exchange code for tokens and create/get user
     const { user, token } = await handleOAuthCallback(code);
 
-    // Set httpOnly cookie
-    res.cookie('auth_token', token, {
+    const cookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      sameSite: 'lax',
+      sameSite: 'lax' as const,
       path: '/',
       domain: process.env.NODE_ENV === 'production' ? '.makemydogtalk.com' : undefined,
+    };
+
+    console.log('[OAuth] Setting cookie with options:', {
+      ...cookieOptions,
+      tokenLength: token.length,
+      userEmail: user.email,
     });
+
+    // Set httpOnly cookie
+    res.cookie('auth_token', token, cookieOptions);
+
+    console.log('[OAuth] Redirecting to /?auth=success');
 
     // Redirect to frontend with success
     res.redirect(`/?auth=success`);

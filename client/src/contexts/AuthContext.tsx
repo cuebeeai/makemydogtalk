@@ -24,11 +24,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Check if user is logged in on mount
-  useEffect(() => {
-    checkAuth();
-  }, []);
-
   const checkAuth = async () => {
     try {
       const response = await fetch('/auth/me', {
@@ -40,6 +35,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (data.success && data.user) {
           setUser(data.user);
         }
+      } else {
+        console.log('Auth check returned non-OK status:', response.status);
       }
     } catch (error) {
       console.error('Auth check failed:', error);
@@ -47,6 +44,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
     }
   };
+
+  // Check if user is logged in on mount and handle OAuth callback
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const isOAuthCallback = params.get('auth') === 'success';
+
+    if (isOAuthCallback) {
+      console.log('OAuth callback detected, checking auth...');
+      // Remove the query parameter from URL
+      window.history.replaceState({}, '', window.location.pathname);
+      // Add a small delay to ensure cookie is set
+      setTimeout(() => {
+        checkAuth();
+      }, 100);
+    } else {
+      // Normal auth check
+      checkAuth();
+    }
+  }, []);
 
   const login = () => {
     // Start OAuth flow (Google)
