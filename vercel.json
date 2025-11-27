@@ -3,12 +3,12 @@
   "outputDirectory": "dist/public",
   "rewrites": [
     {
-      "source": "/api/:path*",
-      "destination": "/api/index/api/:path*"
+      "source": "/api/(.*)",
+      "destination": "/api/index/api/$1"
     },
     {
-      "source": "/auth/:path*",
-      "destination": "/api/index/auth/:path*"
+      "source": "/auth/(.*)",
+      "destination": "/api/index/auth/$1"
     }
   ]
 }
