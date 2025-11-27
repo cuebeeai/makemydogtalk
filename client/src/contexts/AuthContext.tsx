@@ -26,20 +26,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const checkAuth = async () => {
     try {
+      console.log('[AuthContext] Checking auth...');
       const response = await fetch('/auth/me', {
         credentials: 'include', // Important: send cookies
       });
 
+      console.log('[AuthContext] /auth/me response status:', response.status);
+
       if (response.ok) {
         const data = await response.json();
+        console.log('[AuthContext] /auth/me response data:', data);
         if (data.success && data.user) {
+          console.log('[AuthContext] User authenticated:', data.user.email);
           setUser(data.user);
+        } else {
+          console.log('[AuthContext] Response OK but no user data');
         }
       } else {
-        console.log('Auth check returned non-OK status:', response.status);
+        const errorData = await response.json().catch(() => null);
+        console.log('[AuthContext] Auth check returned non-OK status:', response.status, errorData);
       }
     } catch (error) {
-      console.error('Auth check failed:', error);
+      console.error('[AuthContext] Auth check failed:', error);
     } finally {
       setIsLoading(false);
     }

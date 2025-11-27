@@ -22,7 +22,9 @@ app.use((req, _res, next) => {
   console.log(`[Middleware] Headers:`, JSON.stringify({
     'x-forwarded-host': req.headers['x-forwarded-host'],
     'x-vercel-id': req.headers['x-vercel-id'],
+    'cookie': req.headers.cookie ? 'present' : 'missing',
   }));
+  console.log(`[Middleware] Parsed cookies:`, Object.keys(req.cookies || {}));
 
   next();
 });
