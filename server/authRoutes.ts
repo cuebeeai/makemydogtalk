@@ -109,11 +109,22 @@ router.post('/auth/login', async (req: Request, res: Response) => {
  */
 router.get('/auth/google', (req: Request, res: Response) => {
   try {
+    console.log('[OAuth] Starting Google OAuth flow...');
+
+    // Check environment variables
+    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+      console.error('[OAuth] Missing Google OAuth credentials');
+      return res.status(500).send('OAuth configuration error: Missing credentials');
+    }
+
     const authUrl = getAuthUrl();
+    console.log('[OAuth] Generated auth URL, redirecting to Google...');
+
     // Directly redirect to Google OAuth
     res.redirect(authUrl);
   } catch (error: any) {
-    console.error('Error generating auth URL:', error);
+    console.error('[OAuth] Error generating auth URL:', error);
+    console.error('[OAuth] Error stack:', error.stack);
     res.status(500).send(`Authentication error: ${error.message}`);
   }
 });
