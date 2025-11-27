@@ -2,7 +2,13 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist/public",
   "rewrites": [
-    { "source": "/api/:path*", "destination": "/api/index" },
-    { "source": "/auth/:path*", "destination": "/api/index" }
+    {
+      "source": "/api/:path*",
+      "destination": "/api/index/api/:path*"
+    },
+    {
+      "source": "/auth/:path*",
+      "destination": "/api/index/auth/:path*"
+    }
   ]
 }

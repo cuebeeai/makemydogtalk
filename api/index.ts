@@ -12,6 +12,28 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 
+// Normalize Vercel rewrite paths so Express sees the original route
+app.use((req, _res, next) => {
+  const prefix = '/api/index';
+
+  if (req.url.startsWith(prefix)) {
+    const url = new URL(req.url, 'http://internal');
+    // Strip the /api/index prefix and rebuild the URL
+    const rewrittenPath = url.pathname.slice(prefix.length) || '/';
+    const search = url.searchParams;
+    const restQuery = new URLSearchParams(search);
+    const normalizedPath = rewrittenPath.startsWith('/') ? rewrittenPath : `/${rewrittenPath}`;
+
+    // Remove any query params that only existed to carry the wildcard
+    restQuery.delete('path');
+
+    const queryString = restQuery.toString();
+    req.url = queryString ? `${normalizedPath}?${queryString}` : normalizedPath;
+  }
+
+  next();
+});
+
 // Initialize routes once (cached across invocations)
 let initialized = false;
 let initError: Error | null = null;
