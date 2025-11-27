@@ -1,6 +1,6 @@
 import { type User, type InsertUser, type InsertOAuthUser, type VideoOperation, type InsertVideoOperation, type WaitlistEmail, type Transaction, type InsertTransaction } from "@shared/schema";
 import { randomUUID } from "crypto";
-import { db } from "./db";
+import { db } from "./db.js";
 import { users, videoOperations, waitlistEmails, transactions } from "@shared/schema";
 import { eq, desc, sql } from "drizzle-orm";
 

@@ -6,8 +6,8 @@
 import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
 import cookieParser from "cookie-parser";
-import { registerRoutes } from "./routes";
-import { ensureBucketExists } from "./cloudStorage";
+import { registerRoutes } from "./routes.js";
+import { ensureBucketExists } from "./cloudStorage.js";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";

@@ -4,17 +4,17 @@ import express from "express";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { storage } from "./storage";
-import { generateVideo, checkVideoStatus } from "./veo";
-import { rateLimiter } from "./rateLimiter";
-import { registerStripeRoutes } from "./stripe";
-import { registerAdminRoutes } from "./adminRoutes";
-import { creditManager } from "./credits";
-import { optionalAuth, requireAuth } from "./middleware";
-import authRoutes from "./authRoutes";
-import { logoutSession } from "./auth";
-import { logoutSession as logoutEmailSession } from "./emailAuth";
-import { validateImageFile, sanitizeError } from "./validation";
+import { storage } from "./storage.js";
+import { generateVideo, checkVideoStatus } from "./veo.js";
+import { rateLimiter } from "./rateLimiter.js";
+import { registerStripeRoutes } from "./stripe.js";
+import { registerAdminRoutes } from "./adminRoutes.js";
+import { creditManager } from "./credits.js";
+import { optionalAuth, requireAuth } from "./middleware.js";
+import authRoutes from "./authRoutes.js";
+import { logoutSession } from "./auth.js";
+import { logoutSession as logoutEmailSession } from "./emailAuth.js";
+import { validateImageFile, sanitizeError } from "./validation.js";
 
 // Use /tmp for Vercel serverless (read-only filesystem otherwise)
 const uploadDir = process.env.NODE_ENV === 'production' ? '/tmp/uploads' : 'uploads/temp/';

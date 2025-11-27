@@ -1,9 +1,9 @@
 import * as fs from "fs";
 import * as path from "path";
 import { GoogleAuth } from "google-auth-library";
-import { addWatermark, isFFmpegAvailable } from "./watermark";
-import { uploadVideoToGCS } from "./cloudStorage";
-import { sanitizeError } from "./validation";
+import { addWatermark, isFFmpegAvailable } from "./watermark.js";
+import { uploadVideoToGCS } from "./cloudStorage.js";
+import { sanitizeError } from "./validation.js";
 
 // Check for required environment variables
 let serviceAccountCredentials: any;

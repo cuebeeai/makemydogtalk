@@ -4,12 +4,12 @@
  */
 
 import { Express, Request, Response } from 'express';
-import { db } from './db';
-import { users } from '../shared/schema';
+import { db } from './db.js';
+import { users } from '../shared/schema.js';
 import { eq, sql } from 'drizzle-orm';
-import { isAdmin } from './adminUtil';
-import { storage } from './storage';
-import { optionalAuth, requireAuth } from './middleware';
+import { isAdmin } from './adminUtil.js';
+import { storage } from './storage.js';
+import { optionalAuth, requireAuth } from './middleware.js';
 
 export function registerAdminRoutes(app: Express) {
   /**

@@ -4,7 +4,7 @@
  */
 
 import bcrypt from 'bcrypt';
-import { storage } from './storage';
+import { storage } from './storage.js';
 import { type User, insertUserSchema } from '@shared/schema';
 import { randomBytes } from 'crypto';
 

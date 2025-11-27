@@ -10,11 +10,11 @@ import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import * as fs from 'fs';
 import * as path from 'path';
-import { getAuthUrl, handleOAuthCallback, logoutSession, getActiveSessions } from './auth';
-import { generateVideo, checkVideoStatus } from './veo';
-import { requireAuth, optionalAuth } from './middleware';
-import { videoGenerationRateLimiter } from './rateLimiter';
-import { validateImageFile, videoGenerationSchema } from './validation';
+import { getAuthUrl, handleOAuthCallback, logoutSession, getActiveSessions } from './auth.js';
+import { generateVideo, checkVideoStatus } from './veo.js';
+import { requireAuth, optionalAuth } from './middleware.js';
+import { videoGenerationRateLimiter } from './rateLimiter.js';
+import { validateImageFile, videoGenerationSchema } from './validation.js';
 
 const router = Router();
 

@@ -1,9 +1,9 @@
 import Stripe from 'stripe';
 import type { Express, Request, Response } from 'express';
-import { creditManager, getProductByPriceId } from './credits';
-import { promoCodeManager } from './promoCodes';
-import { optionalAuth, requireAuth } from './middleware';
-import { storage } from './storage';
+import { creditManager, getProductByPriceId } from './credits.js';
+import { promoCodeManager } from './promoCodes.js';
+import { optionalAuth, requireAuth } from './middleware.js';
+import { storage } from './storage.js';
 
 // Initialize Stripe only if the secret key is provided
 const stripe = process.env.STRIPE_SECRET_KEY 

@@ -4,8 +4,8 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { signupWithEmail, loginWithEmail } from './emailAuth';
-import { getAuthUrl, handleOAuthCallback } from './auth';
+import { signupWithEmail, loginWithEmail } from './emailAuth.js';
+import { getAuthUrl, handleOAuthCallback } from './auth.js';
 
 const router = Router();
 
