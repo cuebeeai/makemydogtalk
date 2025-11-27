@@ -38,6 +38,7 @@ router.post('/auth/signup', async (req: Request, res: Response) => {
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       sameSite: 'lax',
       path: '/',
+      domain: process.env.NODE_ENV === 'production' ? '.makemydogtalk.com' : undefined,
     });
 
     res.json({
@@ -80,6 +81,7 @@ router.post('/auth/login', async (req: Request, res: Response) => {
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       sameSite: 'lax',
       path: '/',
+      domain: process.env.NODE_ENV === 'production' ? '.makemydogtalk.com' : undefined,
     });
 
     res.json({
@@ -144,7 +146,8 @@ async function processOAuthCallback(req: Request, res: Response) {
       secure: process.env.NODE_ENV === 'production',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       sameSite: 'lax',
-      path: '/', // Ensure cookie is available for all routes
+      path: '/',
+      domain: process.env.NODE_ENV === 'production' ? '.makemydogtalk.com' : undefined,
     });
 
     // Redirect to frontend with success
