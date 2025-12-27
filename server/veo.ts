@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { GoogleAuth } from "google-auth-library";
+import sharp from "sharp";
 import { addWatermark, isFFmpegAvailable } from "./watermark.js";
 import { uploadVideoToGCS } from "./cloudStorage.js";
 import { sanitizeError } from "./validation.js";
@@ -219,8 +220,14 @@ ${orientationDesc}`;
 
 export async function generateVideo(config: VideoGenerationConfig): Promise<VideoGenerationResult> {
   try {
-    const imageBytes = fs.readFileSync(config.imagePath);
-    const imageBase64 = imageBytes.toString('base64');
+    // Use sharp to read the image and automatically correct EXIF orientation
+    // This fixes the issue where iPhone/mobile photos appear rotated
+    console.log("Processing image with EXIF orientation correction...");
+    const processedImageBuffer = await sharp(config.imagePath)
+      .rotate() // Automatically rotates based on EXIF orientation data
+      .toBuffer();
+
+    const imageBase64 = processedImageBuffer.toString('base64');
 
     const mimeType = config.imagePath.toLowerCase().endsWith('.png')
       ? 'image/png'
