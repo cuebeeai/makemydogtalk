@@ -9,11 +9,14 @@ import { Storage } from '@google-cloud/storage';
 let storage: Storage | null = null;
 let isGCSConfigured = false;
 
+// Support both GCS_PROJECT_ID (new) and VERTEX_AI_PROJECT_ID (legacy) for backwards compatibility
+const GCS_PROJECT_ID = process.env.GCS_PROJECT_ID || process.env.VERTEX_AI_PROJECT_ID;
+
 try {
-  if (process.env.SERVICE_ACCOUNT_JSON && process.env.VERTEX_AI_PROJECT_ID) {
+  if (process.env.SERVICE_ACCOUNT_JSON && GCS_PROJECT_ID) {
     storage = new Storage({
       credentials: JSON.parse(process.env.SERVICE_ACCOUNT_JSON),
-      projectId: process.env.VERTEX_AI_PROJECT_ID,
+      projectId: GCS_PROJECT_ID,
     });
     isGCSConfigured = true;
     console.log('✅ Google Cloud Storage configured successfully');
@@ -38,7 +41,7 @@ export async function uploadVideoToGCS(
   destinationFileName: string
 ): Promise<string> {
   if (!isGCSConfigured || !storage) {
-    throw new Error('Google Cloud Storage is not configured. Please set SERVICE_ACCOUNT_JSON and VERTEX_AI_PROJECT_ID.');
+    throw new Error('Google Cloud Storage is not configured. Please set SERVICE_ACCOUNT_JSON and GCS_PROJECT_ID.');
   }
 
   try {
@@ -114,7 +117,7 @@ export async function ensureBucketExists(): Promise<void> {
  */
 export async function deleteVideoFromGCS(fileName: string): Promise<void> {
   if (!isGCSConfigured || !storage) {
-    throw new Error('Google Cloud Storage is not configured. Please set SERVICE_ACCOUNT_JSON and VERTEX_AI_PROJECT_ID.');
+    throw new Error('Google Cloud Storage is not configured. Please set SERVICE_ACCOUNT_JSON and GCS_PROJECT_ID.');
   }
 
   try {
@@ -127,3 +130,68 @@ export async function deleteVideoFromGCS(fileName: string): Promise<void> {
   }
 }
 
+/**
+ * Upload an image file to Google Cloud Storage
+ * Used to get a public URL for the Kie.ai API which requires image URLs
+ * @param localFilePath - Path to the local image file
+ * @param destinationFileName - Desired filename in the bucket
+ * @returns Public URL of the uploaded image
+ */
+export async function uploadImageToGCS(
+  localFilePath: string,
+  destinationFileName: string
+): Promise<string> {
+  if (!isGCSConfigured || !storage) {
+    throw new Error('Google Cloud Storage is not configured. Please set SERVICE_ACCOUNT_JSON and GCS_PROJECT_ID.');
+  }
+
+  try {
+    console.log(`📤 Uploading image to GCS: ${destinationFileName}`);
+
+    const bucket = storage.bucket(BUCKET_NAME);
+
+    // Determine content type based on file extension
+    const ext = localFilePath.toLowerCase().split('.').pop();
+    let contentType = 'image/jpeg';
+    if (ext === 'png') contentType = 'image/png';
+    else if (ext === 'webp') contentType = 'image/webp';
+
+    // Upload the file
+    await bucket.upload(localFilePath, {
+      destination: destinationFileName,
+      metadata: {
+        contentType,
+        cacheControl: 'public, max-age=3600', // Cache for 1 hour (temporary upload)
+      },
+    });
+
+    // Get the public URL
+    const publicUrl = `https://storage.googleapis.com/${BUCKET_NAME}/${destinationFileName}`;
+
+    console.log(`✅ Image uploaded successfully: ${publicUrl}`);
+
+    return publicUrl;
+  } catch (error: any) {
+    console.error('❌ Error uploading image to GCS:', error);
+    throw new Error(`Failed to upload image to cloud storage: ${error.message}`);
+  }
+}
+
+/**
+ * Delete a file from GCS (generic)
+ * @param fileName - Name of the file to delete
+ */
+export async function deleteFileFromGCS(fileName: string): Promise<void> {
+  if (!isGCSConfigured || !storage) {
+    return; // Silently fail if not configured
+  }
+
+  try {
+    const bucket = storage.bucket(BUCKET_NAME);
+    await bucket.file(fileName).delete();
+    console.log(`🗑️  Deleted file from GCS: ${fileName}`);
+  } catch (error: any) {
+    // Don't throw - cleanup failures shouldn't break the flow
+    console.warn(`⚠️  Failed to delete file from GCS: ${fileName}`);
+  }
+}

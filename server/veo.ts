@@ -1,51 +1,19 @@
 import * as fs from "fs";
 import * as path from "path";
-import { GoogleAuth } from "google-auth-library";
 import sharp from "sharp";
 import { addWatermark, isFFmpegAvailable } from "./watermark.js";
-import { uploadVideoToGCS } from "./cloudStorage.js";
+import { uploadVideoToGCS, uploadImageToGCS, deleteFileFromGCS } from "./cloudStorage.js";
 import { sanitizeError } from "./validation.js";
 
+// Kie.ai API configuration
+const KIE_API_BASE_URL = "https://api.kie.ai/api/v1/jobs";
+const KIE_API_KEY = process.env.KIE_API_KEY;
+
 // Check for required environment variables
-let serviceAccountCredentials: any;
-
-// Support both file path (local dev) and JSON string (Vercel)
-if (process.env.SERVICE_ACCOUNT_JSON) {
-  try {
-    serviceAccountCredentials = JSON.parse(process.env.SERVICE_ACCOUNT_JSON);
-    console.log("✅ Using SERVICE_ACCOUNT_JSON from environment");
-  } catch (error) {
-    console.error("❌ Failed to parse SERVICE_ACCOUNT_JSON");
-  }
-} else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-  // For local development with file path
-  console.log("✅ Using GOOGLE_APPLICATION_CREDENTIALS file path");
+if (!KIE_API_KEY) {
+  console.error("❌ KIE_API_KEY not found. Please set the KIE_API_KEY environment variable");
 } else {
-  console.error("❌ No Google credentials found. Please set SERVICE_ACCOUNT_JSON or GOOGLE_APPLICATION_CREDENTIALS");
-}
-
-if (!process.env.VERTEX_AI_PROJECT_ID) {
-  console.error("❌ Vertex AI Project ID not found. Please set the VERTEX_AI_PROJECT_ID environment variable");
-}
-
-const VERTEX_AI_PROJECT_ID = process.env.VERTEX_AI_PROJECT_ID;
-const VERTEX_AI_LOCATION = process.env.VERTEX_AI_LOCATION || "us-central1";
-
-// Initialize Google Auth - support both methods
-const auth = new GoogleAuth({
-  credentials: serviceAccountCredentials,
-  keyFilename: serviceAccountCredentials ? undefined : process.env.GOOGLE_APPLICATION_CREDENTIALS,
-  scopes: ['https://www.googleapis.com/auth/cloud-platform'],
-});
-
-// Function to get access token
-async function getAccessToken(): Promise<string> {
-  const client = await auth.getClient();
-  const accessToken = await client.getAccessToken();
-  if (!accessToken.token) {
-    throw new Error("Failed to get access token");
-  }
-  return accessToken.token;
+  console.log("✅ Kie.ai API key configured");
 }
 
 export interface VideoGenerationConfig {
@@ -56,32 +24,24 @@ export interface VideoGenerationConfig {
   voiceStyle?: string;
   action?: string;
   background?: string;
-  aspectRatio?: "16:9" | "9:16" | "1:1"; // Note: 1:1 will be converted to 9:16 (Veo limitation)
+  aspectRatio?: "16:9" | "9:16" | "1:1";
   resolution?: "720p" | "1080p";
 }
 
 // Prompt versioning for A/B testing and debugging
-const PROMPT_VERSION = "2.1";
-const MIN_DURATION_SECONDS = 4; // Minimum for a good video loop
-const MAX_DURATION_SECONDS = 8; // Veo max (or budget cap)
+const PROMPT_VERSION = "3.0-kling";
 const CHARS_PER_SECOND = 15; // Average speaking rate for English
 
 /**
  * Calculate dynamic video duration based on prompt length
- * Prevents awkward pauses (too short text) or rushed speech (too long text)
- * Veo 3.1 only supports durations of 4, 6, or 8 seconds
+ * Kling 2.6 only supports 5 or 10 seconds
  */
-function calculateDuration(text: string): number {
+function calculateDuration(text: string): "5" | "10" {
   const calculated = Math.ceil(text.length / CHARS_PER_SECOND);
-  const clamped = Math.max(MIN_DURATION_SECONDS, Math.min(MAX_DURATION_SECONDS, calculated));
+  // Kling 2.6 only supports 5 or 10 seconds
+  const duration = calculated <= 7 ? "5" : "10";
 
-  // Veo 3.1 only supports 4, 6, or 8 seconds - round to nearest supported value
-  const SUPPORTED_DURATIONS = [4, 6, 8];
-  const duration = SUPPORTED_DURATIONS.reduce((prev, curr) =>
-    Math.abs(curr - clamped) < Math.abs(prev - clamped) ? curr : prev
-  );
-
-  console.log(`⏱️  Duration calculation: ${text.length} chars ÷ ${CHARS_PER_SECOND} chars/sec = ${calculated}s → clamped to ${clamped}s → rounded to ${duration}s (supported: 4, 6, 8)`);
+  console.log(`⏱️  Duration calculation: ${text.length} chars ÷ ${CHARS_PER_SECOND} chars/sec = ${calculated}s → rounded to ${duration}s (Kling supports: 5, 10)`);
   return duration;
 }
 
@@ -120,6 +80,7 @@ function buildVoiceDescription(tone?: string, voiceStyle?: string): string {
 
 export interface VideoGenerationResult {
   operation: any;
+  taskId: string;
 }
 
 export interface VideoStatusResult {
@@ -130,13 +91,10 @@ export interface VideoStatusResult {
 }
 
 /**
- * Build structured prompt for Veo 3.1 using dynamic duration
- * This ensures consistency, prevents morphing, and maintains lip-sync quality
+ * Build structured prompt for Kling 2.6
+ * Optimized for talking dog video generation with audio
  */
-function buildEnhancedPrompt(config: VideoGenerationConfig, duration: number): string {
-  // Check if this is a multi-dog dialogue
-  const isMultiDog = /Dog\s+\d+:/i.test(config.prompt);
-
+function buildEnhancedPrompt(config: VideoGenerationConfig, duration: string): string {
   // Build voice description
   const voiceDescription = buildVoiceDescription(config.tone, config.voiceStyle);
 
@@ -145,80 +103,34 @@ function buildEnhancedPrompt(config: VideoGenerationConfig, duration: number): s
     ? config.action.trim()
     : '';
 
-  // Determine orientation description
-  const orientationDesc = config.aspectRatio === '9:16'
-    ? 'Vertical 9:16 orientation (for TikTok/Reels/Shorts).'
-    : config.aspectRatio === '1:1'
-    ? 'Square 1:1 orientation.'
-    : 'Horizontal 16:9 orientation.';
+  // Build the structured prompt for Kling 2.6
+  // Kling uses [character description, voice style] format for audio
+  const prompt = `A photorealistic talking dog video. The dog in the image comes to life and speaks the following dialogue with a ${voiceDescription}.
 
-  // Build the structured system prompt
-  const systemPrompt = `You are generating a short, ${duration}-second, photorealistic talking-dog video for an app called MakeMyDogTalk.com.
-Start from the provided dog photo and treat it as the exact first frame of the video.
+The dog's appearance stays IDENTICAL to the photo - same breed, face, fur color, and any clothing/accessories.
+The background, lighting, and camera angle remain exactly the same as the source image.
+Only natural movements: mouth moving to speak, subtle head motion, ear twitches, blinking.
+The video feels like the still image just came to life.
+${userAction ? `\nThe dog also: ${userAction}` : ''}
 
-Hard requirements (do NOT violate these):
-- Keep the dog's appearance IDENTICAL to the photo: same breed, face, fur color, clothing, accessories, body shape, and size.
-- Keep the background, lighting, camera angle, and composition EXACTLY the same as the photo.
-- Do NOT change the dog's species, add extra limbs, or stylize the dog in any way.
-- Do NOT move the camera. No cuts, no zooming, no scene changes.
-- Only add small, natural movements: mouth moving to talk, subtle head motion, ear twitches, blinking, maybe slight body shift.
-- The video should feel like the still image just came to life.
+[Dog character, ${voiceDescription}] speaks: "${config.prompt}"
 
-Frame filling requirements (CRITICAL):
-- The ENTIRE video frame MUST be filled with image content - absolutely NO black bars, letterboxing, or pillarboxing anywhere.
-- If the source photo aspect ratio differs from the target ${config.aspectRatio || '16:9'} format, intelligently extend or crop the scene to fill the frame completely.
-- Keep the dog centered and fully visible, but ensure every pixel of the output is actual image content, not black padding.
-
-Lip-sync requirements:
-- Animate the dog's mouth to match the syllables of the dialogue text provided.
-- The dog should appear to be speaking clearly, with natural mouth movements.
-- Time the mouth motion so the speech line fits within ${duration} seconds.
-
-Audio requirements:
-- Generate crystal clear, high-quality audio with excellent clarity and no muffling.
-- The voice should be crisp, well-articulated, and professionally recorded quality.
-- Ensure proper audio levels - not too quiet, not distorted.
-- Audio should sound natural and present, as if recorded in a professional studio.
-
-Style requirements:
-- Keep the overall look clean, sharp, and realistic, like a high-quality smartphone video.
-- No extra text, logos, or filters over the video.
-
-Now generate a single, continuous shot video that follows these rules.`;
-
-  // Build the per-request details section
-  let requestDetails = `
-
-Voice style: ${voiceDescription}`;
-
-  // Only add action line if user provided one
-  if (userAction) {
-    requestDetails += `
-
-Requested action: ${userAction}`;
-  }
-
-  requestDetails += `
-
-${isMultiDog ? 'Dialogue (multiple dogs speaking in sequence):' : 'Dialogue (what the dog says):'}
-"${config.prompt}"
-
-Duration: ${duration} seconds.
-${orientationDesc}`;
-
-  // Combine system prompt + request details
-  const fullPrompt = systemPrompt + requestDetails;
+Duration: ${duration} seconds of continuous footage. No cuts, no camera movement, no scene changes.`;
 
   // Log for debugging (with version info)
   console.log(`🎬 Generated prompt (v${PROMPT_VERSION}):`);
   console.log('---START PROMPT---');
-  console.log(fullPrompt);
+  console.log(prompt);
   console.log('---END PROMPT---');
 
-  return fullPrompt;
+  return prompt;
 }
 
 export async function generateVideo(config: VideoGenerationConfig): Promise<VideoGenerationResult> {
+  if (!KIE_API_KEY) {
+    throw new Error("KIE_API_KEY is not configured");
+  }
+
   try {
     // Use sharp to read the image and automatically correct EXIF orientation
     // This fixes the issue where iPhone/mobile photos appear rotated
@@ -227,100 +139,94 @@ export async function generateVideo(config: VideoGenerationConfig): Promise<Vide
       .rotate() // Automatically rotates based on EXIF orientation data
       .toBuffer();
 
-    const imageBase64 = processedImageBuffer.toString('base64');
+    // Save processed image to temp file for upload
+    const tempImagePath = path.join(
+      process.env.NODE_ENV === 'production' ? '/tmp' : path.join(process.cwd(), 'uploads'),
+      `temp_${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`
+    );
 
-    const mimeType = config.imagePath.toLowerCase().endsWith('.png')
-      ? 'image/png'
-      : 'image/jpeg';
+    // Ensure directory exists
+    const tempDir = path.dirname(tempImagePath);
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+
+    // Convert to JPEG for compatibility and save
+    await sharp(processedImageBuffer)
+      .jpeg({ quality: 90 })
+      .toFile(tempImagePath);
+
+    // Upload image to GCS to get a public URL (Kling requires URL, not base64)
+    const imageFileName = `temp-images/${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
+    console.log("Uploading image to cloud storage for API access...");
+    const imageUrl = await uploadImageToGCS(tempImagePath, imageFileName);
+
+    // Clean up local temp file
+    fs.unlinkSync(tempImagePath);
 
     // Calculate dynamic duration based on prompt length
     const duration = calculateDuration(config.prompt);
 
     const enhancedPrompt = buildEnhancedPrompt(config, duration);
 
-    // Get OAuth 2.0 access token
-    const accessToken = await getAccessToken();
-
-    // Vertex AI endpoint for Veo 3.1 video generation
-    const endpoint = `https://us-central1-aiplatform.googleapis.com/v1/projects/${VERTEX_AI_PROJECT_ID}/locations/us-central1/publishers/google/models/veo-3.1-generate-preview:predictLongRunning`;
-
-    // Target aspect ratio (user-selected or default)
-    // Note: Veo 3.1 only supports 16:9 and 9:16, NOT 1:1
-    // If user selects 1:1, we'll use 9:16 (vertical) as it's closest
-    let finalAspectRatio: "16:9" | "9:16" = config.aspectRatio === "1:1"
-      ? "9:16"  // Map 1:1 to 9:16 since Veo doesn't support square
-      : (config.aspectRatio as "16:9" | "9:16") || "16:9";
-
-    if (config.aspectRatio === "1:1") {
-      console.log('⚠️  1:1 aspect ratio not supported by Veo 3.1, using 9:16 instead');
-    }
-    console.log('📐 Target aspect ratio:', finalAspectRatio, '(source image may be extended/cropped to fit)');
-
-    // Build request body with clean parameters for Veo 3.1
-    // Using only validated parameters to prevent issues
+    // Build request body for Kie.ai Kling 2.6 API
     const requestBody = {
-      instances: [{
+      model: "kling-2.6/image-to-video",
+      input: {
         prompt: enhancedPrompt,
-        image: {
-          bytesBase64Encoded: imageBase64,
-          mimeType: mimeType,
-        },
-      }],
-      parameters: {
-        aspectRatio: finalAspectRatio,
-        durationSeconds: duration,
-        generateAudio: true,
-        sampleCount: 1,
+        image_urls: [imageUrl],
+        sound: true, // Enable audio generation for talking
+        duration: duration,
       },
     };
 
-    // Log full generation parameters for debugging and A/B testing
+    // Log generation parameters
     console.log(`📊 Generation Parameters (Prompt v${PROMPT_VERSION}):`);
-    console.log(`   - Duration: ${duration}s (fixed)`);
-    console.log(`   - Aspect Ratio: ${finalAspectRatio}`);
-    console.log(`   - Generate Audio: true`);
-    console.log(`   - Sample Count: 1`);
+    console.log(`   - Model: kling-2.6/image-to-video`);
+    console.log(`   - Duration: ${duration}s`);
+    console.log(`   - Sound: enabled`);
     console.log(`   - Voice Style: ${buildVoiceDescription(config.tone, config.voiceStyle)}`);
     console.log(`   - Action (user input): ${config.action || 'none'}`);
     console.log(`   - Dialogue Length: ${config.prompt.length} chars`);
+    console.log(`   - Image URL: ${imageUrl}`);
 
-    console.log("Initiating video generation request...");
+    console.log("Initiating video generation request to Kie.ai...");
 
-    const response = await fetch(endpoint, {
+    const response = await fetch(`${KIE_API_BASE_URL}/createTask`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`,
+        'Authorization': `Bearer ${KIE_API_KEY}`,
       },
       body: JSON.stringify(requestBody),
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("❌ Vertex AI API Error Response:");
+    const responseData = await response.json();
+
+    if (!response.ok || responseData.code !== 200) {
+      console.error("❌ Kie.ai API Error Response:");
       console.error("Status:", response.status, response.statusText);
-      console.error("Raw response:", errorText);
+      console.error("Response:", JSON.stringify(responseData, null, 2));
 
-      let errorData;
-      try {
-        errorData = JSON.parse(errorText);
-        console.error("Parsed error data:", JSON.stringify(errorData, null, 2));
-      } catch {
-        errorData = { message: errorText };
-      }
-      const rawError = errorData.error?.message || errorData.message || `API request failed: ${response.status} ${response.statusText}`;
-      console.error("Extracted error message:", rawError);
-
+      const rawError = responseData.message || responseData.msg || `API request failed: ${response.status}`;
       const sanitizedError = sanitizeError({ message: rawError });
-      console.error("Sanitized error:", sanitizedError);
       throw new Error(sanitizedError);
     }
 
-    const operation = await response.json();
-    console.log("Vertex AI operation started successfully");
+    const taskId = responseData.data?.taskId;
+    if (!taskId) {
+      throw new Error("No task ID returned from Kie.ai API");
+    }
 
+    console.log(`✅ Kie.ai task created successfully: ${taskId}`);
+
+    // Store the temp image filename so we can clean it up later
     return {
-      operation,
+      operation: {
+        taskId,
+        imageFileName, // Store for cleanup
+      },
+      taskId,
     };
   } catch (error: any) {
     console.error("RAW Error generating video:", error);
@@ -333,142 +239,129 @@ export async function generateVideo(config: VideoGenerationConfig): Promise<Vide
 }
 
 export async function checkVideoStatus(operationName: string): Promise<VideoStatusResult> {
-  try {
-    // Get OAuth 2.0 access token
-    const accessToken = await getAccessToken();
+  if (!KIE_API_KEY) {
+    return {
+      status: "failed",
+      error: "KIE_API_KEY is not configured",
+    };
+  }
 
-    // The operation name from Veo 3.1 comes in the format: "models/veo-3.1-generate-preview/operations/OPERATION_ID"
-    // We need to convert it to the full path: "projects/PROJECT_ID/locations/LOCATION/publishers/google/models/MODEL_ID/operations/OPERATION_ID" for the fetchPredictOperation call.
-    let fullOperationName: string;
-    
-    if (operationName.startsWith('projects/')) {
-      // Already a full path
-      fullOperationName = operationName;
-    } else if (operationName.startsWith('models/')) {
-      // Partial path, need to prepend the project/location prefix
-      fullOperationName = `projects/${VERTEX_AI_PROJECT_ID}/locations/${VERTEX_AI_LOCATION}/publishers/google/${operationName}`;
-    } else {
-      // Just the operation ID
-      fullOperationName = `projects/${VERTEX_AI_PROJECT_ID}/locations/${VERTEX_AI_LOCATION}/publishers/google/models/veo-3.1-generate-preview/operations/${operationName}`;
+  try {
+    // operationName is the taskId from Kie.ai
+    // It might be a JSON string with additional data or just the taskId
+    let taskId: string;
+    let imageFileName: string | undefined;
+
+    try {
+      const parsed = JSON.parse(operationName);
+      taskId = parsed.taskId || operationName;
+      imageFileName = parsed.imageFileName;
+    } catch {
+      taskId = operationName;
     }
 
-    // For Veo 3.1, we need to use the fetchPredictOperation endpoint
-    const endpoint = `https://us-central1-aiplatform.googleapis.com/v1/projects/${VERTEX_AI_PROJECT_ID}/locations/us-central1/publishers/google/models/veo-3.1-generate-preview:fetchPredictOperation`;
+    console.log(`Polling Kie.ai task status: ${taskId}`);
 
-    console.log("Polling video generation status...");
-
-    const requestBody = {
-      operationName: fullOperationName
-    };
-
-    const response = await fetch(endpoint, {
-      method: 'POST',
+    const response = await fetch(`${KIE_API_BASE_URL}/recordInfo?taskId=${taskId}`, {
+      method: 'GET',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`,
+        'Authorization': `Bearer ${KIE_API_KEY}`,
       },
-      body: JSON.stringify(requestBody),
     });
 
+    const responseData = await response.json();
+
     if (!response.ok) {
-      await response.text();
-      const errorData = await response.json().catch(() => ({}));
-      const rawError = errorData.error?.message || `Status check failed: ${response.status}`;
-      const sanitizedError = sanitizeError({ message: rawError });
-      console.error("Operation status check failed:", sanitizedError);
+      const errorMsg = responseData.message || responseData.msg || `Status check failed: ${response.status}`;
+      const sanitizedError = sanitizeError({ message: errorMsg });
+      console.error("Task status check failed:", sanitizedError);
       throw new Error(sanitizedError);
     }
 
-    const updatedOperation = await response.json();
+    const taskData = responseData.data;
+    const state = taskData?.state;
 
-    if (!updatedOperation.done) {
-      console.log("Video still processing...");
-      return {
-        status: "processing",
-      };
-    }
+    console.log(`Task state: ${state}`);
 
-    if (updatedOperation.error) {
-      const errorMsg = typeof updatedOperation.error === 'string'
-        ? updatedOperation.error
-        : (updatedOperation.error.message ? String(updatedOperation.error.message) : "Video generation failed");
-      const sanitizedError = sanitizeError({ message: errorMsg });
-      console.error("Video generation failed:", sanitizedError);
-      return {
-        status: "failed",
-        error: sanitizedError,
-      };
-    }
+    // Handle different states
+    if (state === "success") {
+      // Parse result to get video URL
+      let resultUrls: string[] = [];
+      try {
+        const resultJson = JSON.parse(taskData.resultJson || "{}");
+        resultUrls = resultJson.resultUrls || [];
+      } catch {
+        console.error("Failed to parse resultJson:", taskData.resultJson);
+      }
 
-    // Veo 3.1 returns video in response.videos array with bytesBase64Encoded
-    const videos = updatedOperation.response?.videos;
-
-    if (videos && videos.length > 0) {
-      const videoData = videos[0];
-
-      if (!videoData.bytesBase64Encoded) {
-        console.error("No video data in response");
+      if (resultUrls.length === 0) {
+        console.error("No video URL in response");
         return {
           status: "failed",
-          error: "No video data in response",
+          error: "No video generated",
         };
       }
 
-      // Use /tmp for Vercel serverless, regular uploads for other environments
-      const uploadsDir = process.env.NODE_ENV === 'production'
-        ? path.join('/tmp', 'videos')
-        : path.join(process.cwd(), "uploads", "videos");
+      const sourceVideoUrl = resultUrls[0];
+      console.log(`Video generated: ${sourceVideoUrl}`);
 
-      if (!fs.existsSync(uploadsDir)) {
-        fs.mkdirSync(uploadsDir, { recursive: true });
-      }
-
-      const videoFileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.mp4`;
-      const videoPath = path.join(uploadsDir, videoFileName);
-
-      console.log("Processing generated video...");
-
-      // Decode base64 video data and save
-      const videoBuffer = Buffer.from(videoData.bytesBase64Encoded, 'base64');
-      fs.writeFileSync(videoPath, videoBuffer);
-
-      console.log("Video file created successfully");
-
-      // Add watermark to the video
-      let finalVideoPath = videoPath;
-      let finalVideoUrl: string;
-
+      // Download the video from Kie.ai (URLs expire after 24 hours)
+      // and upload to our GCS for permanent storage
       try {
-        // Check if FFmpeg is available
-        const ffmpegAvailable = await isFFmpegAvailable();
-
-        if (ffmpegAvailable) {
-          console.log("Adding watermark to video...");
-          const watermarkedPath = await addWatermark({
-            inputPath: videoPath,
-            text: "MakeMyDogTalk.com",
-            fontSize: 28,
-            opacity: 0.25,
-            position: "bottom-center",
-          });
-
-          // Delete the original unwatermarked video
-          fs.unlinkSync(videoPath);
-
-          // Use the watermarked video
-          finalVideoPath = watermarkedPath;
-          console.log("Watermark added successfully");
-        } else {
-          console.warn("FFmpeg not available - video will not have watermark. Install FFmpeg with: brew install ffmpeg");
+        console.log("Downloading video from Kie.ai...");
+        const videoResponse = await fetch(sourceVideoUrl);
+        if (!videoResponse.ok) {
+          throw new Error(`Failed to download video: ${videoResponse.status}`);
         }
-      } catch (watermarkError: any) {
-        console.error("Failed to add watermark:", watermarkError.message);
-        console.log("Continuing without watermark...");
-        // Continue without watermark if it fails
-      }
 
-      // Upload to Google Cloud Storage for persistent storage
-      try {
+        const videoBuffer = Buffer.from(await videoResponse.arrayBuffer());
+
+        // Save to temp file
+        const uploadsDir = process.env.NODE_ENV === 'production'
+          ? path.join('/tmp', 'videos')
+          : path.join(process.cwd(), "uploads", "videos");
+
+        if (!fs.existsSync(uploadsDir)) {
+          fs.mkdirSync(uploadsDir, { recursive: true });
+        }
+
+        const videoFileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.mp4`;
+        const videoPath = path.join(uploadsDir, videoFileName);
+        fs.writeFileSync(videoPath, videoBuffer);
+
+        console.log("Video downloaded successfully");
+
+        // Add watermark to the video
+        let finalVideoPath = videoPath;
+        let finalVideoUrl: string;
+
+        try {
+          const ffmpegAvailable = await isFFmpegAvailable();
+
+          if (ffmpegAvailable) {
+            console.log("Adding watermark to video...");
+            const watermarkedPath = await addWatermark({
+              inputPath: videoPath,
+              text: "MakeMyDogTalk.com",
+              fontSize: 28,
+              opacity: 0.25,
+              position: "bottom-center",
+            });
+
+            // Delete the original unwatermarked video
+            fs.unlinkSync(videoPath);
+
+            finalVideoPath = watermarkedPath;
+            console.log("Watermark added successfully");
+          } else {
+            console.warn("FFmpeg not available - video will not have watermark");
+          }
+        } catch (watermarkError: any) {
+          console.error("Failed to add watermark:", watermarkError.message);
+          console.log("Continuing without watermark...");
+        }
+
+        // Upload to GCS for persistent storage
         const gcsFileName = `videos/${Date.now()}_${Math.random().toString(36).substring(7)}.mp4`;
         console.log("Uploading video to cloud storage...");
 
@@ -476,27 +369,44 @@ export async function checkVideoStatus(operationName: string): Promise<VideoStat
 
         // Clean up local temp file
         fs.unlinkSync(finalVideoPath);
+
+        // Clean up the temp image from GCS
+        if (imageFileName) {
+          await deleteFileFromGCS(imageFileName);
+        }
+
         console.log("Video uploaded successfully");
+
+        return {
+          status: "completed",
+          videoUrl: finalVideoUrl,
+        };
       } catch (uploadError: any) {
         const sanitizedError = sanitizeError(uploadError);
-        console.error("Failed to upload video:", sanitizedError);
+        console.error("Failed to process video:", sanitizedError);
+        throw new Error(`Video generated but failed to process: ${sanitizedError}`);
+      }
+    } else if (state === "fail") {
+      const errorMsg = taskData.failMsg || "Video generation failed";
+      const sanitizedError = sanitizeError({ message: errorMsg });
+      console.error("Video generation failed:", sanitizedError);
 
-        // CRITICAL: On Vercel/serverless, local paths will NOT work
-        // We must throw an error instead of silently failing with unusable URLs
-        throw new Error(`Video generated but failed to upload to cloud storage. Please check configuration.`);
+      // Clean up temp image on failure
+      if (imageFileName) {
+        await deleteFileFromGCS(imageFileName);
       }
 
       return {
-        status: "completed",
-        videoUrl: finalVideoUrl,
+        status: "failed",
+        error: sanitizedError,
+      };
+    } else {
+      // Still processing
+      console.log("Video still processing...");
+      return {
+        status: "processing",
       };
     }
-
-    console.error("No video data in API response");
-    return {
-      status: "failed",
-      error: "No video generated",
-    };
   } catch (error: any) {
     const sanitizedMsg = sanitizeError(error);
     console.error("Error checking video status:", sanitizedMsg);

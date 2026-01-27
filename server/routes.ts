@@ -280,8 +280,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         action,
       });
 
+      // Store the full operation object as JSON string for Kie.ai API
+      // This includes taskId and imageFileName for cleanup
+      const operationData = JSON.stringify(result.operation);
+
       const operation = await storage.createVideoOperation({
-        operationId: result.operation.name || null,
+        operationId: operationData,
         status: "processing",
         prompt,
         imagePath,

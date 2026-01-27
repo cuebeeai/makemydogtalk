@@ -289,8 +289,12 @@ router.get('/health', optionalAuth, (req: Request, res: Response) => {
       } : null,
       activeSessions: getActiveSessions(),
     },
-    vertexAI: {
-      configured: !!process.env.SERVICE_ACCOUNT_JSON && !!process.env.VERTEX_AI_PROJECT_ID,
+    videoGeneration: {
+      provider: 'Kie.ai (Kling 2.6)',
+      configured: !!process.env.KIE_API_KEY,
+    },
+    cloudStorage: {
+      configured: !!process.env.SERVICE_ACCOUNT_JSON && !!(process.env.GCS_PROJECT_ID || process.env.VERTEX_AI_PROJECT_ID),
     },
   });
 });
